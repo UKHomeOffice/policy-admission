@@ -1,0 +1,29 @@
+package: github.com/UKHomeOffice/policy-admission
+import:
+- package: github.com/labstack/echo
+  subpackages:
+  - middleware
+- package: github.com/sirupsen/logrus
+- package: github.com/urfave/cli
+- package: k8s.io/api
+  subpackages:
+  - admission/v1alpha1
+  - core/v1
+- package: k8s.io/apimachinery
+  subpackages:
+  - pkg/apis/meta/v1
+  - pkg/util/validation/field
+- package: k8s.io/client-go
+  subpackages:
+  - kubernetes
+  - rest
+- package: k8s.io/kubernetes
+  subpackages:
+  - pkg/api
+  - pkg/apis/extensions
+  - pkg/security/podsecuritypolicy
+testImport:
+- package: github.com/stretchr/testify
+  subpackages:
+  - assert
+  - require

@@ -1,0 +1,35 @@
+workspace:
+  base: /go
+  path: src/github.com/UKHomeOffice/policy-admission
+
+pipeline:
+  tests:
+    image: golang:1.9
+    commands:
+      - make test
+      - make static
+
+  latest:
+    image: docker:1.13
+    environment:
+      - DOCKER_HOST=tcp://172.17.0.1:2375
+    secrets: [docker_password]
+    commands:
+      - docker build -t quay.io/ukhomeofficedigital/policy-admission:latest .
+      - docker login -u="ukhomeofficedigital+policy_admission" -p=$${DOCKER_PASSWORD} quay.io
+      - docker push quay.io/ukhomeofficedigital/policy-admission:latest
+    when:
+      event: push
+      branch: master
+
+  tagged:
+    image: docker:1.13
+    environment:
+      - DOCKER_HOST=tcp://172.17.0.1:2375
+    secrets: [docker_password]
+    commands:
+      - docker build -t quay.io/ukhomeofficedigital/policy-admission:$${DRONE_TAG} .
+      - docker login -u="ukhomeofficedigital+policy_admission" -p=$${DOCKER_PASSWORD} quay.io
+      - docker push quay.io/ukhomeofficedigital/policy-admission:$${DRONE_TAG}
+    when:
+      event: tag
