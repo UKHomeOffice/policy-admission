@@ -60,14 +60,26 @@ func main() {
 				Usage:  "the path to a file containing the security policies `PATH`",
 				EnvVar: "POLICIES",
 			},
+			cli.BoolFlag{
+				Name:   "watch-config",
+				Usage:  "indicated you want the configuration reload on updates `BOOL`",
+				EnvVar: "WATCH_CONFIG",
+			},
+			cli.BoolFlag{
+				Name:   "verbose",
+				Usage:  "switch on verbose logging `BOOL`",
+				EnvVar: "VERBOSE",
+			},
 		},
 
 		Action: func(cx *cli.Context) error {
 			config := &Config{
-				Listen:   cx.String("listen"),
-				Policies: cx.String("policies"),
-				TLSCert:  cx.String("tls-cert"),
-				TLSKey:   cx.String("tls-key"),
+				Listen:      cx.String("listen"),
+				Policies:    cx.String("policies"),
+				TLSCert:     cx.String("tls-cert"),
+				TLSKey:      cx.String("tls-key"),
+				Verbose:     cx.Bool("verbose"),
+				WatchConfig: cx.Bool("watch-config"),
 			}
 
 			// @step create the controller

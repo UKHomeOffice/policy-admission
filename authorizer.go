@@ -57,6 +57,7 @@ func (c *podAuthorizer) authorize(policy string, pod *core.Pod) (bool, field.Err
 		if pod.Namespace == x {
 			log.WithFields(log.Fields{
 				"namespace": pod.Namespace,
+				"pod":       pod.GenerateName,
 			}).Info("ignoring authorization on this namespace")
 
 			return true, field.ErrorList{}
@@ -87,6 +88,9 @@ func (c *podAuthorizer) authorize(policy string, pod *core.Pod) (bool, field.Err
 
 	// @check if of the container security policies
 	for _, container := range pod.Spec.Containers {
+		if container.SecurityContext == nil {
+			continue
+		}
 		violations = provider.ValidateContainerSecurityContext(pod, &container, field.NewPath("", ""))
 		if len(violations) > 0 {
 			return false, violations

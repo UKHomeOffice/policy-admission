@@ -13,7 +13,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
 package main
 
 import (
@@ -50,6 +49,7 @@ type controller struct {
 	policy *podAuthorizer
 	client kubernetes.Interface
 	config *Config
+	engine *echo.Echo
 	server *http.Server
 }
 
@@ -59,9 +59,7 @@ func newAdmissionController(config *Config) (*controller, error) {
 	if err := config.isValid(); err != nil {
 		return nil, err
 	}
-	log.Infof("starting the policy admission controller, version: %s, listen: %s", Version, config.Listen)
 
-	// @step: create a authorizer
 	policies, err := createPodAuthorizorConfig(config.Policies)
 	if err != nil {
 		return nil, err
@@ -77,6 +75,10 @@ func newAdmissionControllerWithConfig(config *Config, policies *podAuthorizerCon
 	}
 	log.Infof("starting the policy admission controller, version: %s, listen: %s", Version, config.Listen)
 
+	if config.Verbose {
+		log.SetLevel(log.DebugLevel)
+	}
+
 	authorizer, err := newPodAuthorizer(policies)
 	if err != nil {
 		return nil, err
@@ -85,16 +87,16 @@ func newAdmissionControllerWithConfig(config *Config, policies *podAuthorizerCon
 	c := &controller{config: config, policy: authorizer}
 
 	// @step: create the http router
-	engine := echo.New()
-	engine.HideBanner = true
-	engine.Use(middleware.Recover())
-	engine.POST("/", c.admitHandler)
-	engine.GET("/health", c.healthHandler)
-	engine.GET("/version", c.versionHandler)
+	c.engine = echo.New()
+	c.engine.HideBanner = true
+	c.engine.Use(middleware.Recover())
+	c.engine.POST("/", c.admitHandler)
+	c.engine.GET("/health", c.healthHandler)
+	c.engine.GET("/version", c.versionHandler)
 
 	c.server = &http.Server{
 		Addr:         c.config.Listen,
-		Handler:      engine,
+		Handler:      c.engine,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 5 * time.Second,
 		IdleTimeout:  5 * time.Second,
@@ -125,20 +127,28 @@ func newAdmissionControllerWithConfig(config *Config, policies *podAuthorizerCon
 
 // admit is responsible for applying the policy on the incoming request
 func (c *controller) admit(review *admission.AdmissionReview) error {
+	object := &core.Pod{}
+
 	ok, message := func() (bool, string) {
 		// the policy to check the pod against
 		var selected string
 
 		kind := review.Spec.Kind.Kind
 		if kind != "Pod" {
-			return false, fmt.Sprintf("invalid object for review: %s, expected: Pod", kind)
+			return false, fmt.Sprintf("invalid object for review: %s, expected: pod", kind)
 		}
 
 		// @step: decode the object into a pod specification
-		object := &core.Pod{}
 		if err := json.Unmarshal(review.Spec.Object.Raw, object); err != nil {
 			return false, fmt.Sprintf("unable to decode object spec: %s", err)
 		}
+		object.Namespace = review.Spec.Namespace
+
+		log.WithFields(log.Fields{
+			"namespace": object.Namespace,
+			"pod":       object.Name,
+			"spec":      fmt.Sprintf("%s", review.Spec.Object.Raw),
+		}).Debug("pod spec up for review")
 
 		// @check if the namespace has a security policy annotation
 		namespace, err := c.client.CoreV1().Namespaces().Get(review.Spec.Namespace, metav1.GetOptions{})
@@ -167,14 +177,19 @@ func (c *controller) admit(review *admission.AdmissionReview) error {
 			return false, strings.Join(reasons, ",")
 		}
 
+		log.WithFields(log.Fields{
+			"namespace": review.Spec.Namespace,
+			"pod":       object.GenerateName,
+		}).Info("pod is authorized for execution")
+
 		return true, ""
 	}()
 	if !ok {
 		log.WithFields(log.Fields{
 			"error":     message,
-			"name":      review.Spec.Name,
 			"namespace": review.Spec.Namespace,
-		}).Warn(message)
+			"pod":       object.GenerateName,
+		}).Warn("authorization for pod execution denied")
 
 		review.Status.Allowed = false
 		review.Status.Result = &metav1.Status{
@@ -245,15 +260,15 @@ func (c *controller) updatePolicyAuthorizer(authorizer *podAuthorizer) {
 
 // startController is repsonsible for starting the service up
 func (c *controller) startController() error {
-	// @step: attempt to create a kubernetes client
 	client, err := getKubernetesClient()
 	if err != nil {
 		return err
 	}
+
 	c.client = client
 
 	go func() {
-		if err := c.server.ListenAndServe(); err != nil {
+		if err := c.engine.StartServer(c.server); err != nil {
 			log.WithFields(log.Fields{"error": err.Error()}).Fatal("unable to create the http service")
 		}
 	}()

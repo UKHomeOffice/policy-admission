@@ -46,6 +46,8 @@ type Config struct {
 	Policies string `yaml:"policies"`
 	// WatchConfig indicates we should reload the policy config
 	WatchConfig bool `yaml:"watch-config"`
+	// Verbose indicates you want verbose / debug logging
+	Verbose bool `yaml:"verbose"`
 }
 
 // isValid is resposible for checking the configuration

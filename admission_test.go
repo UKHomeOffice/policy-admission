@@ -46,7 +46,7 @@ func newFakeController() *fakeController {
 		ObjectMeta: metav1.ObjectMeta{Name: "kube-system"},
 	})
 
-	return &fakeController{server: httptest.NewServer(c.server.Handler), service: c}
+	return &fakeController{server: httptest.NewServer(c.engine), service: c}
 }
 
 func newFakeConfig() *Config {
