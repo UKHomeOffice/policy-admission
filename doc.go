@@ -51,7 +51,10 @@ type Config struct {
 // isValid is resposible for checking the configuration
 func (c *Config) isValid() error {
 	if c.Listen == "" {
-		return errors.New("no interface specified")
+		return errors.New("no interface defined")
+	}
+	if c.Policies == "" {
+		return errors.New("no policies defined")
 	}
 
 	return nil

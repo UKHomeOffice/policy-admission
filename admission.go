@@ -24,14 +24,15 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/ghodss/yaml"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	log "github.com/sirupsen/logrus"
-	yaml "gopkg.in/yaml.v2"
 	admission "k8s.io/api/admission/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -52,7 +53,8 @@ type controller struct {
 	server *http.Server
 }
 
-// newAdmissionController creates, registers and starts the admission controller
+// newAdmissionController creates and returns a new admission controller
+// - this indirection is really nothing more but to make testing eaiser i.e no need to write config files
 func newAdmissionController(config *Config) (*controller, error) {
 	if err := config.isValid(); err != nil {
 		return nil, err
@@ -65,6 +67,16 @@ func newAdmissionController(config *Config) (*controller, error) {
 		return nil, err
 	}
 
+	return newAdmissionControllerWithConfig(config, policies)
+}
+
+// newAdmissionControllerWithConfig creates, registers and starts the admission controller
+func newAdmissionControllerWithConfig(config *Config, policies *podAuthorizerConfig) (*controller, error) {
+	if err := config.isValid(); err != nil {
+		return nil, err
+	}
+	log.Infof("starting the policy admission controller, version: %s, listen: %s", Version, config.Listen)
+
 	authorizer, err := newPodAuthorizer(policies)
 	if err != nil {
 		return nil, err
@@ -76,6 +88,7 @@ func newAdmissionController(config *Config) (*controller, error) {
 	engine := echo.New()
 	engine.HideBanner = true
 	engine.Use(middleware.Recover())
+	engine.POST("/", c.admitHandler)
 	engine.GET("/health", c.healthHandler)
 	engine.GET("/version", c.versionHandler)
 
@@ -113,6 +126,9 @@ func newAdmissionController(config *Config) (*controller, error) {
 // admit is responsible for applying the policy on the incoming request
 func (c *controller) admit(review *admission.AdmissionReview) error {
 	ok, message := func() (bool, string) {
+		// the policy to check the pod against
+		var selected string
+
 		kind := review.Spec.Kind.Kind
 		if kind != "Pod" {
 			return false, fmt.Sprintf("invalid object for review: %s, expected: Pod", kind)
@@ -130,20 +146,25 @@ func (c *controller) admit(review *admission.AdmissionReview) error {
 			log.WithFields(log.Fields{
 				"error":     err.Error(),
 				"namespace": review.Spec.Namespace,
-			}).Error("unable to retrieve namespace")
-
-			return false, "unable to get namespace"
+			}).Warnf("unable to retrieve namespace, selecting default policy")
 		}
-		// @check if a policy is selected, ensure the policy exixts
-		selected := namespace.GetAnnotations()[SecurityPolicyAnnotation]
+		if namespace != nil {
+			// @check if a policy is selected, ensure the policy exixts
+			selected = namespace.GetAnnotations()[SecurityPolicyAnnotation]
+		}
 
 		// @check the pod spec against the policy - this operating has to be serialized
 		c.RLock()
 		defer c.RUnlock()
 
-		violations := c.policy.authorize(selected, object)
-		if len(violations) > 0 {
-			return false, "security violation"
+		admit, violations := c.policy.authorize(selected, object)
+		if !admit {
+			var reasons []string
+			for _, x := range violations {
+				reasons = append(reasons, fmt.Sprintf("%s", x.Detail))
+			}
+
+			return false, strings.Join(reasons, ",")
 		}
 
 		return true, ""

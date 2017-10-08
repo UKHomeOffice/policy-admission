@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: policy-admission
+  name: policy-admission
+spec:
+  clusterIP: 10.10.22.101
+  selector:
+    name: policy-admission
+  ports:
+  - name: https
+    port: 443
+    targetPort: 8443

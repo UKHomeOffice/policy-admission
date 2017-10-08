@@ -2,3 +2,6 @@ config.yml
 vendor/
 bin/
 release/
+cover.html
+cover.out
+*.swp

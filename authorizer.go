@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	core "k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/extensions"
@@ -37,19 +38,19 @@ type podAuthorizer struct {
 
 // podAuthorizerConfig the security policies configuration
 type podAuthorizerConfig struct {
-	// DefaultPolicy is the name of the default policy to user
-	DefaultPolicy string `yaml:"default-policy"`
+	// Defaul is the name of the default policy to user
+	Default string `yaml:"default"`
 	// IgnoreNamespaces is a collection of namespace to bypass enforcement
-	IgnoreNamespaces []string `yaml:"ignore-namespaces"`
+	IgnoreNamespaces []string `yaml:"ignoreNamespaces"`
 	// Policies is a list of pod security policies which are available
-	Policies map[string]*extensions.PodSecurityPolicy `yaml:"policies"`
-	// PolicyNamespaceMapping is a predefined list of namespace to policy mapping
-	PolicyNamespaceMapping map[string]string `yaml:"policy-namespace-mapping"`
+	Policies map[string]extensions.PodSecurityPolicySpec `yaml:"policies"`
+	// NamespaceMapping is a predefined list of namespace to policy mapping
+	NamespaceMapping map[string]string `yaml:"namespaceMapping"`
 }
 
 // authorize is responsible for adding a policy to the enforcers
-func (c *podAuthorizer) authorize(policy string, pod *core.Pod) field.ErrorList {
-	name := c.config.DefaultPolicy
+func (c *podAuthorizer) authorize(policy string, pod *core.Pod) (bool, field.ErrorList) {
+	name := c.config.Default
 
 	// @check is this namespace being ignored
 	for _, x := range c.config.IgnoreNamespaces {
@@ -58,7 +59,7 @@ func (c *podAuthorizer) authorize(policy string, pod *core.Pod) field.ErrorList 
 				"namespace": pod.Namespace,
 			}).Info("ignoring authorization on this namespace")
 
-			return field.ErrorList{}
+			return true, field.ErrorList{}
 		}
 	}
 
@@ -72,26 +73,39 @@ func (c *podAuthorizer) authorize(policy string, pod *core.Pod) field.ErrorList 
 		name = policy
 	}
 
-	// @step: check the policy exists
+	// @check the policy exists
 	provider, found := c.providers[name]
 	if !found {
-		return field.ErrorList{&field.Error{Detail: "no such policy"}}
+		return false, field.ErrorList{{Detail: "no such policy found", Type: field.ErrorTypeNotFound}}
 	}
 
-	return provider.ValidatePodSecurityContext(pod, field.NewPath("spec", "securityContext"))
+	// @check for violation of pod policy
+	violations := provider.ValidatePodSecurityContext(pod, field.NewPath("", ""))
+	if len(violations) > 0 {
+		return false, violations
+	}
+
+	// @check if of the container security policies
+	for _, container := range pod.Spec.Containers {
+		violations = provider.ValidateContainerSecurityContext(pod, &container, field.NewPath("", ""))
+		if len(violations) > 0 {
+			return false, violations
+		}
+	}
+
+	return true, field.ErrorList{}
 }
 
 // newPodAuthorizer creates and returns a pod authorization implementation
 func newPodAuthorizer(config *podAuthorizerConfig) (*podAuthorizer, error) {
-	// @step: validate the configuration
 	if err := config.isValid(); err != nil {
 		return nil, err
 	}
 
-	// @step: create the providers from the configuration
 	providers := make(map[string]podsecuritypolicy.Provider, 0)
 	for name, policy := range config.Policies {
-		pv, err := podsecuritypolicy.NewSimpleProvider(policy, "", podsecuritypolicy.NewSimpleStrategyFactory())
+		pv, err := podsecuritypolicy.NewSimpleProvider(&extensions.PodSecurityPolicy{
+			ObjectMeta: metav1.ObjectMeta{Name: name}, Spec: policy}, "", podsecuritypolicy.NewSimpleStrategyFactory())
 		if err != nil {
 			return nil, fmt.Errorf("unable to load policy '%s', error: '%q'", name, err)
 		}
@@ -107,24 +121,20 @@ func newPodAuthorizer(config *podAuthorizerConfig) (*podAuthorizer, error) {
 
 // isValid checks if the pod authorization config is valid
 func (c *podAuthorizerConfig) isValid() error {
-	if c.Policies == nil {
-		return errors.New("no policies defined")
-	}
-
 	if len(c.Policies) == 0 {
 		return errors.New("zero policies defined")
 	}
 
-	if c.DefaultPolicy == "" {
+	if c.Default == "" {
 		return errors.New("no default security policy defined")
 	}
 
-	if _, found := c.Policies[c.DefaultPolicy]; !found {
+	if _, found := c.Policies[c.Default]; !found {
 		return errors.New("the default policy not found in policies")
 	}
 
-	if c.PolicyNamespaceMapping != nil {
-		for namespace, name := range c.PolicyNamespaceMapping {
+	if c.NamespaceMapping != nil {
+		for namespace, name := range c.NamespaceMapping {
 			if _, found := c.Policies[name]; !found {
 				return fmt.Errorf("the mapping for namespace: '%q' policy: '%q' does not exist", namespace, name)
 			}
@@ -136,10 +146,10 @@ func (c *podAuthorizerConfig) isValid() error {
 
 // defaultNamespaceMapping returns a
 func (c *podAuthorizerConfig) defaultNamespaceMapping(namespace string) (string, bool) {
-	if c.PolicyNamespaceMapping == nil {
+	if c.NamespaceMapping == nil {
 		return "", false
 	}
-	name, found := c.PolicyNamespaceMapping[namespace]
+	name, found := c.NamespaceMapping[namespace]
 
 	return name, found
 }

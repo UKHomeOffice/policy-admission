@@ -1,0 +1,19 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    ingress.kubernetes.io/secure-backends: "true"
+  name: test
+spec:
+  rules:
+  - host: rohith.notprod.acp.homeoffice.gov.uk
+    http:
+      paths:
+      - backend:
+          serviceName: keycloak
+          servicePort: 443
+        path: /
+  tls:
+  - hosts:
+    - rohith.notprod.acp.homeoffice.gov.uk
+    secretName: tls

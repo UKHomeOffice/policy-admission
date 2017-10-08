@@ -1,0 +1,84 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: policy-admission
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 2
+  template:
+    metadata:
+      labels:
+        name: policy-admission
+      annotations:
+        build: "https://github.com/UKHomeOffice/policy-admission"
+        owner: "devops@digital.homeoffice.gov.uk"
+    spec:
+      serviceAccount: policy-admission
+      containers:
+      - name: certs
+        image: quay.io/ukhomeofficedigital/cfssl-sidekick:v0.0.1
+        resources:
+          limits:
+            cpu: 100m
+            memory: 60Mi
+        args:
+        - --domain=policy-admission.${KUBE_NAMESPACE}.svc.cluster.local
+        - --domain=127.0.0.1
+        - --domain=10.10.22.101
+        env:
+        - name: KUBE_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - name: certs
+          mountPath: /certs
+        - name: bundle
+          mountPath: /etc/ssl/certs
+          readOnly: true
+      - name: controller
+        image: quay.io/ukhomeofficedigital/policy-admission:v0.0.1
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        args:
+        - --policies=/config/policy.yml
+        - --tls-cert=/certs/tls.pem
+        - --tls-key=/certs/tls-key.pem
+        ports:
+        - name: https
+          containerPort: 8443
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: https
+            scheme: HTTPS
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: https
+            scheme: HTTPS
+        volumeMounts:
+        - name: certs
+          mountPath: /certs
+          readOnly: true
+        - name: config
+          mountPath: /config
+          readOnly: true
+        - name: bundle
+          mountPath: /etc/ssl/certs
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: policy-admission
+      - name: bundle
+        configMap:
+          name: bundle
+      - name: certs
+        emptyDir: {}

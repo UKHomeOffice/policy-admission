@@ -27,6 +27,10 @@ func TestConfigIsValid(t *testing.T) {
 	}{
 		{
 			Config: Config{},
+			Error:  "no interface defined",
+		},
+		{
+			Config: Config{Listen: "127.0.0.1:8080"},
 			Error:  "no policies defined",
 		},
 	}
