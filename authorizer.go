@@ -92,36 +92,36 @@ func (c *podAuthorizer) authorize(policy string, pod *core.Pod) (bool, field.Err
 	if len(violations) > 0 {
 		return false, violations
 	}
-
 	// @check if the init container are valid agains the policy
-	for _, container := range pod.Spec.InitContainers {
-		violations := c.validateContainer(provider, pod, &container)
-		if len(violations) > 0 {
-			return false, violations
-		}
+	violations = c.validateContainers(provider, pod, pod.Spec.InitContainers)
+	if len(violations) > 0 {
+		return false, violations
 	}
-
-	// @check if of the container security policies
-	for _, container := range pod.Spec.Containers {
-		violations := c.validateContainer(provider, pod, &container)
-		if len(violations) > 0 {
-			return false, violations
-		}
+	// @check the main containers to not invalidate the psp
+	violations = c.validateContainers(provider, pod, pod.Spec.Containers)
+	if len(violations) > 0 {
+		return false, violations
 	}
 
 	return true, field.ErrorList{}
 }
 
-// validateContainer check the container against the provider psp
-func (c *podAuthorizer) validateContainer(provider podsecuritypolicy.Provider, pod *core.Pod, container *core.Container) field.ErrorList {
-	sc, _, err := provider.CreateContainerSecurityContext(pod, container)
-	if err != nil {
-		return field.ErrorList{{Type: field.ErrorTypeInternal, Detail: err.Error()}}
+// validateContainers is responisble for iterating the
+func (c *podAuthorizer) validateContainers(provider podsecuritypolicy.Provider, pod *core.Pod, containers []core.Container) field.ErrorList {
+	for _, container := range containers {
+		sc, _, err := provider.CreateContainerSecurityContext(pod, &container)
+		if err != nil {
+			return field.ErrorList{{Type: field.ErrorTypeInternal, Detail: err.Error()}}
+		}
+		container.SecurityContext = sc
+
+		violations := provider.ValidateContainerSecurityContext(pod, &container, field.NewPath("spec", "securityContext"))
+		if len(violations) > 0 {
+			return violations
+		}
 	}
 
-	container.SecurityContext = sc
-
-	return provider.ValidateContainerSecurityContext(pod, container, field.NewPath("", ""))
+	return field.ErrorList{}
 }
 
 // newPodAuthorizer creates and returns a pod authorization implementation
