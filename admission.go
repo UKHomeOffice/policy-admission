@@ -33,6 +33,7 @@ import (
 	"github.com/labstack/echo/middleware"
 	log "github.com/sirupsen/logrus"
 	admission "k8s.io/api/admission/v1alpha1"
+	api "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -116,7 +117,7 @@ func newAdmissionControllerWithConfig(config *Config, policies *podAuthorizerCon
 	}
 
 	// @step: are we watching for file changes
-	if c.config.WatchConfig {
+	if c.config.EnableReload {
 		if err := c.createPolicyChangesWatcher(c.config.Policies); err != nil {
 			return nil, err
 		}
@@ -177,11 +178,6 @@ func (c *controller) admit(review *admission.AdmissionReview) error {
 			return false, strings.Join(reasons, ",")
 		}
 
-		log.WithFields(log.Fields{
-			"namespace": review.Spec.Namespace,
-			"pod":       object.GenerateName,
-		}).Info("pod is authorized for execution")
-
 		return true, ""
 	}()
 	if !ok {
@@ -199,10 +195,28 @@ func (c *controller) admit(review *admission.AdmissionReview) error {
 			Status:  metav1.StatusFailure,
 		}
 
+		if c.config.EnableEvents {
+			_, err := c.client.CoreV1().Events(c.config.Namespace).Create(&api.Event{
+				Reason:  "PodForbidden",
+				Message: fmt.Sprintf("Pod denied in namespace: '%s', pod: '%s'", review.Spec.Namespace, object.GenerateName),
+				Source:  api.EventSource{Component: AdmissionControllerName},
+				Type:    "Warning",
+			})
+			if err != nil {
+				log.WithFields(log.Fields{
+					"error": err.Error(),
+				}).Warnf("failed to create the kubernetes event")
+			}
+		}
+
 		return nil
 	}
-
 	review.Status.Allowed = true
+
+	log.WithFields(log.Fields{
+		"namespace": review.Spec.Namespace,
+		"pod":       object.GenerateName,
+	}).Info("pod is authorized for execution")
 
 	return nil
 }
@@ -260,11 +274,10 @@ func (c *controller) updatePolicyAuthorizer(authorizer *podAuthorizer) {
 
 // startController is repsonsible for starting the service up
 func (c *controller) startController() error {
-	client, err := getKubernetesClient()
+	client, err := c.getKubernetesClient()
 	if err != nil {
 		return err
 	}
-
 	c.client = client
 
 	go func() {
@@ -297,10 +310,22 @@ func createPodAuthorizorConfig(filename string) (*podAuthorizerConfig, error) {
 }
 
 // getKubernetesClient returns a kubernetes api client for us
-func getKubernetesClient() (*kubernetes.Clientset, error) {
+func (c *controller) getKubernetesClient() (*kubernetes.Clientset, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
+	}
+
+	if c.config.EnableEvents && c.config.Namespace == "" {
+		content, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+		if err != nil {
+			log.WithFields(log.Fields{
+				"error": err.Error(),
+			}).Errorf("unable to read namesapce from serviceaccount file, disabling events")
+
+			c.config.EnableEvents = false
+		}
+		c.config.Namespace = string(content)
 	}
 
 	return kubernetes.NewForConfig(config)

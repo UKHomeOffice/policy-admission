@@ -60,10 +60,20 @@ func main() {
 				Usage:  "the path to a file containing the security policies `PATH`",
 				EnvVar: "POLICIES",
 			},
+			cli.StringFlag{
+				Name:   "Namespace",
+				Usage:  "namespace we are running, required for events though optional as we can discover `NAME`",
+				EnvVar: "KUBE_NAMESPACE",
+			},
 			cli.BoolFlag{
-				Name:   "watch-config",
-				Usage:  "indicated you want the configuration reload on updates `BOOL`",
-				EnvVar: "WATCH_CONFIG",
+				Name:   "enable-events",
+				Usage:  "indicates you wish to log kubernetes events on denials `BOOL`",
+				EnvVar: "ENABLE_EVENTS",
+			},
+			cli.BoolFlag{
+				Name:   "enable-reload",
+				Usage:  "indicates you want the configuration reload on updates `BOOL`",
+				EnvVar: "ENABLE_RELOAD",
 			},
 			cli.BoolFlag{
 				Name:   "verbose",
@@ -73,22 +83,20 @@ func main() {
 		},
 
 		Action: func(cx *cli.Context) error {
-			config := &Config{
-				Listen:      cx.String("listen"),
-				Policies:    cx.String("policies"),
-				TLSCert:     cx.String("tls-cert"),
-				TLSKey:      cx.String("tls-key"),
-				Verbose:     cx.Bool("verbose"),
-				WatchConfig: cx.Bool("watch-config"),
-			}
-
-			// @step create the controller
-			ctl, err := newAdmissionController(config)
+			ctl, err := newAdmissionController(&Config{
+				EnableEvents: cx.Bool("enable-events"),
+				EnableReload: cx.Bool("enable-reload"),
+				Listen:       cx.String("listen"),
+				Namespace:    cx.String("namespace"),
+				Policies:     cx.String("policies"),
+				TLSCert:      cx.String("tls-cert"),
+				TLSKey:       cx.String("tls-key"),
+				Verbose:      cx.Bool("verbose"),
+			})
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "[error] unable to initialize controller, %q", err)
+				fmt.Fprintf(os.Stderr, "[error] unable o initialize controller, %q", err)
 				os.Exit(1)
 			}
-
 			// @step: start the service
 			if err := ctl.startController(); err != nil {
 				fmt.Fprintf(os.Stderr, "[error] unable to start controller, %q", err)

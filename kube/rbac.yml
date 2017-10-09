@@ -4,17 +4,32 @@ kind: ClusterRole
 metadata:
   name: acp:policy-admission
 rules:
-- apiGroups: ["*"]
-  resources: ["configmaps"]
-  verbs: ["get"]
-- apiGroups: ["admissionregistration.k8s.io"]
-  resources: ["externaladmissionhookconfigurations"]
-  verbs: ["create", "update", "delete"]
-- apiGroups: ["*"]
-  resources: ["namespaces"]
-  verbs: ["get", "list"]
-- nonResourceURLs: ["*"]
-  verbs: ["get", "list"]
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - externaladmissionhookconfigurations
+  verbs:
+  - create
+  - delete
+  - update
+- apiGroups:
+  - v1
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - v1
+  resources:
+  - events
+  verbs:
+  - create
+- nonResourceURLs:
+  - "*"
+  verbs:
+  - get
+  - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding

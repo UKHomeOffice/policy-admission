@@ -36,16 +36,20 @@ var (
 
 // Config is the configuration for the service
 type Config struct {
+	// EnableEvents indicates we should enable event logging
+	EnableEvents bool `yaml:"enable-events"`
+	// EnableReload indicates we should reload the policy config
+	EnableReload bool `yaml:"enable-reload"`
 	// Listen is the interface we are listening on
 	Listen string `yaml:"listen"`
+	// Namespace is the kubernetes namespace we are running in
+	Namespace string `yaml:"namespace"`
 	// TLSKey is the path to a private key
 	TLSKey string `yaml:"tls-key"`
 	// TLSCert is the path to a certificate
 	TLSCert string `yaml:"tls-cert"`
 	// Policies is the path to the security policy file
 	Policies string `yaml:"policies"`
-	// WatchConfig indicates we should reload the policy config
-	WatchConfig bool `yaml:"watch-config"`
 	// Verbose indicates you want verbose / debug logging
 	Verbose bool `yaml:"verbose"`
 }
