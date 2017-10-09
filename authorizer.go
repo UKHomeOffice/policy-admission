@@ -26,6 +26,7 @@ import (
 	core "k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/security/podsecuritypolicy"
+	sc "k8s.io/kubernetes/pkg/securitycontext"
 )
 
 // podAuthorizer is used to wrap the interaction with the psp runtime
@@ -80,15 +81,8 @@ func (c *podAuthorizer) authorize(policy string, pod *core.Pod) (bool, field.Err
 		return false, field.ErrorList{{Detail: "no such policy found", Type: field.ErrorTypeNotFound}}
 	}
 
-	// @step: generate the pod security context from the psp
-	sc, _, err := provider.CreatePodSecurityContext(pod)
-	if err != nil {
-		return false, field.ErrorList{{Type: field.ErrorTypeInternal, Detail: err.Error()}}
-	}
-	pod.Spec.SecurityContext = sc
-
-	// @check for violation of pod policy
-	violations := provider.ValidatePodSecurityContext(pod, field.NewPath("", ""))
+	// @check if the pod violates the psp
+	violations := c.validatePod(provider, pod)
 	if len(violations) > 0 {
 		return false, violations
 	}
@@ -106,9 +100,33 @@ func (c *podAuthorizer) authorize(policy string, pod *core.Pod) (bool, field.Err
 	return true, field.ErrorList{}
 }
 
-// validateContainers is responisble for iterating the
+// validatePod is responsible for valudating the pod spec against the psp
+func (c *podAuthorizer) validatePod(provider podsecuritypolicy.Provider, pod *core.Pod) field.ErrorList {
+	// @step: generate the pod security context from the psp
+	sc, _, err := provider.CreatePodSecurityContext(pod)
+	if err != nil {
+		return field.ErrorList{{Type: field.ErrorTypeInternal, Detail: err.Error()}}
+	}
+	pod.Spec.SecurityContext = sc
+
+	// @check for violation of pod policy
+	violations := provider.ValidatePodSecurityContext(pod, field.NewPath("spec", "securityContext"))
+	if len(violations) > 0 {
+		return violations
+	}
+
+	return field.ErrorList{}
+}
+
+// validateContainers is responisble for iterating the containers and validating against the policy
 func (c *podAuthorizer) validateContainers(provider podsecuritypolicy.Provider, pod *core.Pod, containers []core.Container) field.ErrorList {
 	for _, container := range containers {
+		// We will determine the effective security context for the container and validate against that
+		// since that is how the sc provider will eventually apply settings in the runtime.
+		// This results in an SC that is based on the Pod's PSC with the set fields from the container
+		// overriding pod level settings.
+		_ = sc.InternalDetermineEffectiveSecurityContext(pod, &container)
+
 		sc, _, err := provider.CreateContainerSecurityContext(pod, &container)
 		if err != nil {
 			return field.ErrorList{{Type: field.ErrorTypeInternal, Detail: err.Error()}}
@@ -132,13 +150,16 @@ func newPodAuthorizer(config *podAuthorizerConfig) (*podAuthorizer, error) {
 
 	providers := make(map[string]podsecuritypolicy.Provider, 0)
 	for name, policy := range config.Policies {
-		pv, err := podsecuritypolicy.NewSimpleProvider(&extensions.PodSecurityPolicy{
-			ObjectMeta: metav1.ObjectMeta{Name: name}, Spec: policy}, "", podsecuritypolicy.NewSimpleStrategyFactory())
+		psp := &extensions.PodSecurityPolicy{
+			ObjectMeta: metav1.ObjectMeta{Name: name},
+			Spec:       policy,
+		}
+
+		p, err := podsecuritypolicy.NewSimpleProvider(psp, "", podsecuritypolicy.NewSimpleStrategyFactory())
 		if err != nil {
 			return nil, fmt.Errorf("unable to load policy '%s', error: '%q'", name, err)
 		}
-
-		providers[name] = pv
+		providers[name] = p
 	}
 
 	return &podAuthorizer{

@@ -29,9 +29,9 @@ import (
 
 type podCheck struct {
 	context *core.PodSecurityContext
-	pod     *core.Pod
 	errors  field.ErrorList
 	ok      bool
+	pod     *core.Pod
 	policy  string
 }
 
@@ -76,7 +76,7 @@ func TestHostNetworkPodChecks(t *testing.T) {
 				{
 					BadValue: true,
 					Detail:   "Host network is not allowed to be used",
-					Field:    "[][].hostNetwork",
+					Field:    "spec.securityContext.hostNetwork",
 					Type:     field.ErrorTypeInvalid,
 				},
 			},
@@ -167,7 +167,6 @@ func newFakePodAuthorizerConfig() *podAuthorizerConfig {
 		NamespaceMapping: map[string]string{"kube-system": "privileged"},
 		Policies: map[string]extensions.PodSecurityPolicySpec{
 			"default": {
-				AllowPrivilegeEscalation: true,
 				AllowedCapabilities:      []core.Capability{},
 				DefaultAddCapabilities:   []core.Capability{},
 				FSGroup:                  extensions.FSGroupStrategyOptions{Rule: extensions.FSGroupStrategyRunAsAny},
