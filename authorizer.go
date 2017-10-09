@@ -80,24 +80,48 @@ func (c *podAuthorizer) authorize(policy string, pod *core.Pod) (bool, field.Err
 		return false, field.ErrorList{{Detail: "no such policy found", Type: field.ErrorTypeNotFound}}
 	}
 
+	// @step: generate the pod security context from the psp
+	sc, _, err := provider.CreatePodSecurityContext(pod)
+	if err != nil {
+		return false, field.ErrorList{{Type: field.ErrorTypeInternal, Detail: err.Error()}}
+	}
+	pod.Spec.SecurityContext = sc
+
 	// @check for violation of pod policy
 	violations := provider.ValidatePodSecurityContext(pod, field.NewPath("", ""))
 	if len(violations) > 0 {
 		return false, violations
 	}
 
+	// @check if the init container are valid agains the policy
+	for _, container := range pod.Spec.InitContainers {
+		violations := c.validateContainer(provider, pod, &container)
+		if len(violations) > 0 {
+			return false, violations
+		}
+	}
+
 	// @check if of the container security policies
 	for _, container := range pod.Spec.Containers {
-		if container.SecurityContext == nil {
-			continue
-		}
-		violations = provider.ValidateContainerSecurityContext(pod, &container, field.NewPath("", ""))
+		violations := c.validateContainer(provider, pod, &container)
 		if len(violations) > 0 {
 			return false, violations
 		}
 	}
 
 	return true, field.ErrorList{}
+}
+
+// validateContainer check the container against the provider psp
+func (c *podAuthorizer) validateContainer(provider podsecuritypolicy.Provider, pod *core.Pod, container *core.Container) field.ErrorList {
+	sc, _, err := provider.CreateContainerSecurityContext(pod, container)
+	if err != nil {
+		return field.ErrorList{{Type: field.ErrorTypeInternal, Detail: err.Error()}}
+	}
+
+	container.SecurityContext = sc
+
+	return provider.ValidateContainerSecurityContext(pod, container, field.NewPath("", ""))
 }
 
 // newPodAuthorizer creates and returns a pod authorization implementation
