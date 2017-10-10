@@ -40,16 +40,16 @@ spec:
           mountPath: /etc/ssl/certs
           readOnly: true
       - name: controller
-        image: quay.io/ukhomeofficedigital/policy-admission:v0.0.1
+        image: quay.io/ukhomeofficedigital/policy-admission:v0.0.3
         imagePullPolicy: Always
         resources:
           limits:
             cpu: 200m
             memory: 128Mi
         args:
-        - --policies=/config/policy.yml
         - --tls-cert=/certs/tls.pem
         - --tls-key=/certs/tls-key.pem
+        - --authorizer=securitycontext=/config/policy.yml
         ports:
         - name: https
           containerPort: 8443

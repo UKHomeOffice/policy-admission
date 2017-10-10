@@ -17,12 +17,25 @@ limitations under the License.
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
+	"github.com/UKHomeOffice/policy-admission/pkg/api"
+	"github.com/UKHomeOffice/policy-admission/pkg/authorize"
+	"github.com/UKHomeOffice/policy-admission/pkg/server"
+
 	"github.com/urfave/cli"
+)
+
+var (
+	// Version is the version of the service
+	Version = "v0.0.3"
+	// GitSHA is the git sha this was built off
+	GitSHA = "unknown"
 )
 
 func main() {
@@ -30,7 +43,7 @@ func main() {
 		Name:    "policy-admission",
 		Author:  "Rohith Jayawardene",
 		Email:   "gambol99@gmail.com",
-		Usage:   "is a service used to enforce secuirty policies within a cluster",
+		Usage:   "is a service used to enforce secuirty policy within a cluster",
 		Version: fmt.Sprintf("%s (git+sha: %s)", Version, GitSHA),
 
 		OnUsageError: func(context *cli.Context, err error, isSubcommand bool) error {
@@ -41,65 +54,67 @@ func main() {
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:   "listen",
-				Usage:  "the network interace the service should listen on `INTERFACE`",
+				Usage:  "network interace the service should listen on `INTERFACE`",
 				Value:  ":8443",
 				EnvVar: "LISTEN",
 			},
 			cli.StringFlag{
 				Name:   "tls-cert",
-				Usage:  "the path to a file containing the tls certificate `PATH`",
+				Usage:  "path to a file containing the tls certificate `PATH`",
 				EnvVar: "TLS_CERT",
 			},
 			cli.StringFlag{
 				Name:   "tls-key",
-				Usage:  "the path to a file containing the tls key `PATH`",
+				Usage:  "path to a file containing the tls key `PATH`",
 				EnvVar: "TLS_KEY",
 			},
-			cli.StringFlag{
-				Name:   "policies",
-				Usage:  "the path to a file containing the security policies `PATH`",
-				EnvVar: "POLICIES",
+			cli.StringSliceFlag{
+				Name:  "authorizer",
+				Usage: "enable a admission authorizer, the format is name=config_path (i.e securitycontext=config.yaml)",
 			},
 			cli.StringFlag{
-				Name:   "Namespace",
-				Usage:  "namespace we are running, required for events though optional as we can discover `NAME`",
+				Name:   "namespace",
+				Usage:  "namespace to create denial events (optional as we can try and discover) `NAME`",
 				EnvVar: "KUBE_NAMESPACE",
+				Value:  "kube-admission",
 			},
 			cli.BoolFlag{
 				Name:   "enable-events",
 				Usage:  "indicates you wish to log kubernetes events on denials `BOOL`",
 				EnvVar: "ENABLE_EVENTS",
 			},
-			cli.BoolFlag{
-				Name:   "enable-reload",
-				Usage:  "indicates you want the configuration reload on updates `BOOL`",
-				EnvVar: "ENABLE_RELOAD",
-			},
-			cli.BoolFlag{
-				Name:   "verbose",
-				Usage:  "switch on verbose logging `BOOL`",
-				EnvVar: "VERBOSE",
-			},
 		},
 
 		Action: func(cx *cli.Context) error {
-			ctl, err := newAdmissionController(&Config{
+			var authorizers []api.Authorize
+			// @step: configure the authorizers
+			for _, config := range cx.StringSlice("authorizer") {
+				authorizer, err := configureAuthorizer(config)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "[error] unable to enable authorizer: %s", err)
+					os.Exit(1)
+				}
+				authorizers = append(authorizers, authorizer)
+			}
+
+			config := &server.Config{
 				EnableEvents: cx.Bool("enable-events"),
-				EnableReload: cx.Bool("enable-reload"),
 				Listen:       cx.String("listen"),
 				Namespace:    cx.String("namespace"),
-				Policies:     cx.String("policies"),
 				TLSCert:      cx.String("tls-cert"),
 				TLSKey:       cx.String("tls-key"),
-				Verbose:      cx.Bool("verbose"),
-			})
+			}
+
+			// @step: create the server
+			ctl, err := server.New(config, authorizers)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "[error] unable o initialize controller, %q", err)
+				fmt.Fprintf(os.Stderr, "[error] unable to initialize controller, %q\n", err)
 				os.Exit(1)
 			}
+
 			// @step: start the service
-			if err := ctl.startController(); err != nil {
-				fmt.Fprintf(os.Stderr, "[error] unable to start controller, %q", err)
+			if err := ctl.Start(); err != nil {
+				fmt.Fprintf(os.Stderr, "[error] unable to start controller, %q\n", err)
 				os.Exit(1)
 			}
 
@@ -113,4 +128,20 @@ func main() {
 	}
 
 	app.Run(os.Args)
+}
+
+// configureAuthorizer is responsible for creating an authorizer
+func configureAuthorizer(cfg string) (api.Authorize, error) {
+	items := strings.Split(cfg, "=")
+	if len(items) > 2 {
+		return nil, errors.New("invalid authorizer config, should be name:config_path")
+	}
+
+	providerName := items[0]
+	providerConfig := ""
+	if len(items) == 2 {
+		providerConfig = items[1]
+	}
+
+	return authorize.New(providerName, providerConfig, true)
 }

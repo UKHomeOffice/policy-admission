@@ -14,13 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package securitycontext
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	core "k8s.io/kubernetes/pkg/api"
@@ -28,38 +29,37 @@ import (
 )
 
 type podCheck struct {
-	context *core.PodSecurityContext
-	errors  field.ErrorList
-	ok      bool
-	pod     *core.Pod
-	policy  string
+	context   *core.PodSecurityContext
+	errors    field.ErrorList
+	namespace *v1.Namespace
+	ok        bool
+	pod       *core.Pod
+	policy    string
 }
 
-func TestNewEnforcer(t *testing.T) {
-	p, err := newPodAuthorizer(newFakePodAuthorizerConfig())
+func TestNew(t *testing.T) {
+	p, err := New(newTestConfig())
 	assert.NotNil(t, p)
 	assert.NoError(t, err)
-	assert.Equal(t, len(p.providers), 2)
 }
 
-func TestNewEnforcerWithConfig(t *testing.T) {
-	config, err := createPodAuthorizorConfig("./tests/config.yml")
-	require.NotNil(t, config)
-	require.NoError(t, err)
-	p, err := newPodAuthorizer(config)
+func TestNewFromFile(t *testing.T) {
+	c, err := NewFromFile("./config_test.yml")
 	assert.NoError(t, err)
-	assert.NotNil(t, p)
+	assert.NotNil(t, c)
 }
 
 func TestProviderNotFound(t *testing.T) {
 	checks := map[string]podCheck{
 		"check we get a provider not found error": {
 			context: &core.PodSecurityContext{},
-			policy:  "no_there",
+			policy:  "not_there",
 			errors: field.ErrorList{
 				{
-					Detail: "no such policy found",
-					Type:   field.ErrorTypeNotFound,
+					BadValue: "not_there",
+					Detail:   "policy does not exist",
+					Field:    "policy",
+					Type:     field.ErrorTypeInvalid,
 				},
 			},
 		},
@@ -67,11 +67,32 @@ func TestProviderNotFound(t *testing.T) {
 	checkAuthorizer(t, checks)
 }
 
+/*
+func TestRunNonRootChecks(t *testing.T) {
+	pod := newDefaultPod()
+	pod.Spec.Containers = []core.Container{
+		{
+			Name:            "test-1",
+			Image:           "nginx",
+			SecurityContext: &core.SecurityContext{},
+		},
+	}
+
+	checks := map[string]podCheck{
+		"checking the pods with no non-root fail on default policy": {
+			pod:    pod,
+			policy: "default",
+			errors: field.ErrorList{},
+		},
+	}
+	checkAuthorizer(t, checks)
+}
+*/
+
 func TestHostNetworkPodChecks(t *testing.T) {
 	checks := map[string]podCheck{
 		"checking the host network is denied in default": {
 			context: &core.PodSecurityContext{HostNetwork: true},
-			policy:  "default",
 			errors: field.ErrorList{
 				{
 					BadValue: true,
@@ -140,11 +161,9 @@ func TestPodPrivilegedChecks(t *testing.T) {
 	priv := true
 	pod.Spec.Containers = []core.Container{
 		{
-			Name:  "test",
-			Image: "nginx",
-			SecurityContext: &core.SecurityContext{
-				Privileged: &priv,
-			},
+			Name:            "test",
+			Image:           "nginx",
+			SecurityContext: &core.SecurityContext{Privileged: &priv},
 		},
 	}
 	checks := map[string]podCheck{
@@ -160,8 +179,8 @@ func TestPodPrivilegedChecks(t *testing.T) {
 	checkAuthorizer(t, checks)
 }
 
-func newFakePodAuthorizerConfig() *podAuthorizerConfig {
-	return &podAuthorizerConfig{
+func newTestConfig() *Config {
+	return &Config{
 		Default:          "default",
 		IgnoreNamespaces: []string{"ignored"},
 		NamespaceMapping: map[string]string{"kube-system": "privileged"},
@@ -173,7 +192,7 @@ func newFakePodAuthorizerConfig() *podAuthorizerConfig {
 				RequiredDropCapabilities: []core.Capability{},
 				RunAsUser: extensions.RunAsUserStrategyOptions{
 					Rule:   extensions.RunAsUserStrategyMustRunAsNonRoot,
-					Ranges: []extensions.UserIDRange{{Min: 2, Max: 1024}},
+					Ranges: []extensions.UserIDRange{{Min: 1024, Max: 65535}},
 				},
 				SELinux:            extensions.SELinuxStrategyOptions{Rule: extensions.SELinuxStrategyRunAsAny},
 				SupplementalGroups: extensions.SupplementalGroupsStrategyOptions{Rule: extensions.SupplementalGroupsStrategyRunAsAny},
@@ -186,26 +205,24 @@ func newFakePodAuthorizerConfig() *podAuthorizerConfig {
 				},
 			},
 			"privileged": {
-				AllowPrivilegeEscalation: true,
-				AllowedCapabilities:      []core.Capability{"*"},
-				FSGroup:                  extensions.FSGroupStrategyOptions{Rule: extensions.FSGroupStrategyRunAsAny},
-				HostIPC:                  true,
-				HostNetwork:              true,
-				HostPID:                  true,
-				HostPorts:                []extensions.HostPortRange{{Min: 1, Max: 65536}},
-				Privileged:               true,
-				ReadOnlyRootFilesystem:   false,
-				RunAsUser:                extensions.RunAsUserStrategyOptions{Rule: extensions.RunAsUserStrategyRunAsAny},
-				SELinux:                  extensions.SELinuxStrategyOptions{Rule: extensions.SELinuxStrategyRunAsAny},
-				SupplementalGroups:       extensions.SupplementalGroupsStrategyOptions{Rule: extensions.SupplementalGroupsStrategyRunAsAny},
-				Volumes:                  []extensions.FSType{extensions.All},
+				AllowedCapabilities:    []core.Capability{"*"},
+				FSGroup:                extensions.FSGroupStrategyOptions{Rule: extensions.FSGroupStrategyRunAsAny},
+				HostIPC:                true,
+				HostNetwork:            true,
+				HostPID:                true,
+				HostPorts:              []extensions.HostPortRange{{Min: 1, Max: 65536}},
+				Privileged:             true,
+				ReadOnlyRootFilesystem: false,
+				RunAsUser:              extensions.RunAsUserStrategyOptions{Rule: extensions.RunAsUserStrategyRunAsAny},
+				SELinux:                extensions.SELinuxStrategyOptions{Rule: extensions.SELinuxStrategyRunAsAny},
+				SupplementalGroups:     extensions.SupplementalGroupsStrategyOptions{Rule: extensions.SupplementalGroupsStrategyRunAsAny},
+				Volumes:                []extensions.FSType{extensions.All},
 			},
 		},
 	}
 }
 
 func newDefaultPod() *core.Pod {
-	var notPriv bool = false
 	return &core.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "my-pod",
@@ -213,13 +230,10 @@ func newDefaultPod() *core.Pod {
 			Annotations: map[string]string{},
 		},
 		Spec: core.PodSpec{
-			SecurityContext: &core.PodSecurityContext{},
 			Containers: []core.Container{
 				{
-					Name: "test-pod",
-					SecurityContext: &core.SecurityContext{
-						Privileged: &notPriv,
-					},
+					Name:            "test-pod",
+					SecurityContext: &core.SecurityContext{},
 				},
 			},
 		},
@@ -227,7 +241,7 @@ func newDefaultPod() *core.Pod {
 }
 
 func checkAuthorizer(t *testing.T, checks map[string]podCheck) {
-	p, err := newPodAuthorizer(newFakePodAuthorizerConfig())
+	p, err := New(newTestConfig())
 	require.NoError(t, err)
 
 	for name, check := range checks {
@@ -235,11 +249,25 @@ func checkAuthorizer(t *testing.T, checks map[string]podCheck) {
 		if pod == nil {
 			pod = newDefaultPod()
 		}
+		namespace := check.namespace
+		if namespace == nil {
+			namespace = &v1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "test",
+					Annotations: make(map[string]string, 0),
+				},
+			}
+		}
+		if check.policy != "" {
+			namespace.Annotations[Annotation] = check.policy
+		}
+
 		if check.context != nil {
 			pod.Spec.SecurityContext = check.context
 		}
 
-		ok, violations := p.authorize(check.policy, pod)
+		violations := p.Admit(nil, namespace, pod)
+		ok := len(violations) == 0
 		assert.Equal(t, check.ok, ok, "case: '%s', expected: %t, got: %t", name, check.ok, ok)
 		if len(check.errors) > 0 {
 			assert.Equal(t, check.errors, violations, "case: '%s', violation mismatched", name)

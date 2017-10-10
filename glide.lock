@@ -1,12 +1,10 @@
-hash: 14dc8c1c4b3576a285f331e99e593a08c6d84f3f8e17519fbd40f2c8fda80a45
-updated: 2017-10-08T13:40:16.004172076Z
+hash: 9ba43a2176d38a9ee825c7020b81d66407571b036276fc84983bf9aeacb49be6
+updated: 2017-10-15T22:21:01.19482337Z
 imports:
 - name: github.com/davecgh/go-spew
   version: 782f4967f2dc4564575ca782fe2d04090b5faca8
   subpackages:
   - spew
-- name: github.com/dgrijalva/jwt-go
-  version: a539ee1a749a2b895533f979515ac7e6e0f5b650
 - name: github.com/emicklei/go-restful
   version: ff4f55a206334ef123e4f79bbf348980da81ca46
   subpackages:
@@ -60,15 +58,11 @@ imports:
   version: 5b9ff866471762aa2ab2dced63c9fb6f53921342
 - name: github.com/labstack/echo
   version: a625e589cffa33eac768ab98bc21518cef786e2d
-  subpackages:
-  - middleware
 - name: github.com/labstack/gommon
   version: 779b8a8b9850a97acba6a3fe20feb628c39e17c1
   subpackages:
-  - bytes
   - color
   - log
-  - random
 - name: github.com/mailru/easyjson
   version: d5b7844b561a7bc640052f1b935f7b800330d7e0
   subpackages:
@@ -79,6 +73,8 @@ imports:
   version: ad5389df28cdac544c99bd7b9161a0b5b6ca9d1b
 - name: github.com/mattn/go-isatty
   version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
+- name: github.com/patrickmn/go-cache
+  version: a3647f8e31d79543b2d0f0ae2fe5c379d72cedc0
 - name: github.com/peterbourgon/diskv
   version: 5f041e8faa004a95c88a202771f4cc3e991971e6
 - name: github.com/PuerkitoBio/purell
@@ -303,6 +299,7 @@ imports:
   - pkg/security/podsecuritypolicy/sysctl
   - pkg/security/podsecuritypolicy/user
   - pkg/security/podsecuritypolicy/util
+  - pkg/securitycontext
   - pkg/util/file
   - pkg/util/maps
 testImports:

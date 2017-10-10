@@ -3,13 +3,14 @@ import:
 - package: github.com/fsnotify/fsnotify
 - package: github.com/ghodss/yaml
 - package: github.com/labstack/echo
-  subpackages:
-  - middleware
+- package: github.com/patrickmn/go-cache
 - package: github.com/sirupsen/logrus
 - package: github.com/urfave/cli
 - package: k8s.io/api
   subpackages:
   - admission/v1alpha1
+  - core/v1
+  - extensions/v1beta1
 - package: k8s.io/apimachinery
   subpackages:
   - pkg/apis/meta/v1
@@ -23,6 +24,7 @@ import:
   - pkg/api
   - pkg/apis/extensions
   - pkg/security/podsecuritypolicy
+  - pkg/securitycontext
 testImport:
 - package: github.com/stretchr/testify
   subpackages:
