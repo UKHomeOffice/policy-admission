@@ -14,10 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package server
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo"
@@ -26,7 +25,7 @@ import (
 )
 
 // admitHandler is responsible for handling the authorization request
-func (c *controller) admitHandler(ctx echo.Context) error {
+func (c *Admission) admitHandler(ctx echo.Context) error {
 	review := &admission.AdmissionReview{}
 
 	// @step: we need to unmarshal the review
@@ -40,7 +39,9 @@ func (c *controller) admitHandler(ctx echo.Context) error {
 
 	// @step: apply the policy against the review
 	if err := c.admit(review); err != nil {
-		log.WithFields(log.Fields{"error": err.Error()}).Error("unable to apply the policy")
+		log.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Error("unable to apply the policy")
 
 		return ctx.NoContent(http.StatusInternalServerError)
 	}
@@ -49,11 +50,6 @@ func (c *controller) admitHandler(ctx echo.Context) error {
 }
 
 // healthHandler is just a health endpoint for the kubelet to call
-func (c *controller) healthHandler(ctx echo.Context) error {
+func (c *Admission) healthHandler(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, "OK\n")
-}
-
-// versionHandler is responsible for handling the version handler
-func (c *controller) versionHandler(ctx echo.Context) error {
-	return ctx.String(http.StatusOK, fmt.Sprintf("%s\n", Version))
 }
