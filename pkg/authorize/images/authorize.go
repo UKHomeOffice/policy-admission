@@ -117,13 +117,6 @@ func (c *authorizer) parseImagePolicyAnnotation(annotation string) (list []*rege
 	return
 }
 
-// copyOver the slice from source to destination
-func copyOver(dst, src []*regexp.Regexp) {
-	for _, x := range src {
-		dst = append(dst, x)
-	}
-}
-
 // Name is the authorizer
 func (c *authorizer) Name() string {
 	return Name
