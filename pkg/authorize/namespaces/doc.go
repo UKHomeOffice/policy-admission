@@ -16,23 +16,43 @@ limitations under the License.
 
 package namespaces
 
+import (
+	"errors"
+	"regexp"
+)
+
 const (
 	// Name is the name of the authorizer
 	Name = "namespaces"
-	// Annotation provides a namespace specific override or add to policy
-	Annotation = "policy-admission.acp.homeoffice.gov.uk/" + Name
 )
 
-// NamespaceAnnotation defines a required annotation
-type NamespaceAnnotation struct {
-	// Required indicate the labels is required
+const (
+	// TypeAnnotation indictes a annotation
+	TypeAnnotation = "annotation"
+	// TypeLabel indictes a label
+	TypeLabel = "label"
+)
 
+// Attribute defines a required annotation
+type Attribute struct {
+	// Type indicates a label or annotation
+	Type string
+	// Required indicate the labels is required
+	Required bool `yaml:"required" json:"required"`
+	// Name is the name of thie field
+	Name string `yaml:"name" json:"name"`
+	// Validate is a regexp to apply
+	Validate string `yaml:"validate" json:"valdiate"`
+	// compiled is the compiled regex
+	compiled *regexp.Regexp
 }
 
 // Config is the configuration for the service
 type Config struct {
 	// IgnoredNamespaces is a list namespaces to ignore
-	IgnoreNamespaces []string
+	IgnoreNamespaces []string `yaml:"ignore-namespaces" json:"ignore-namespaces"`
+	// Attributes is a collection of attributes to validate the namespace
+	Attributes []*Attribute `yaml:"attributes" json:"attributes"`
 }
 
 // NewDefaultConfig returns a default config
@@ -40,4 +60,30 @@ func NewDefaultConfig() *Config {
 	return &Config{
 		IgnoreNamespaces: []string{"kube-system", "kube-admission"},
 	}
+}
+
+// IsValid checks the attribute it valid
+func (a *Attribute) IsValid() error {
+	if a.Name == "" {
+		return errors.New("no name defined")
+	}
+	if a.Type == "" {
+		return errors.New("no type defined")
+	}
+	switch a.Type {
+	case TypeAnnotation:
+	case TypeLabel:
+	default:
+		return errors.New("invalid type defined")
+	}
+	if !a.Required && a.Validate == "" {
+		return errors.New("no validate defined")
+	}
+	if a.Validate != "" {
+		if _, err := regexp.Compile(a.Validate); err != nil {
+			return errors.New("invalid validator regex defined")
+		}
+	}
+
+	return nil
 }
