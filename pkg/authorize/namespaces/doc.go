@@ -58,7 +58,7 @@ type Config struct {
 // NewDefaultConfig returns a default config
 func NewDefaultConfig() *Config {
 	return &Config{
-		IgnoreNamespaces: []string{"kube-system", "kube-admission"},
+		IgnoreNamespaces: []string{"kube-system", "kube-admission", "kube-public"},
 	}
 }
 
