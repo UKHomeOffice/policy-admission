@@ -1,0 +1,189 @@
+## **Policy Enforcement**
+
+The [policy-admission](https://github.com/UKHomeOffice/policy-admission) is a [custom admission controller](https://kubernetes.io/docs/admin/extensible-admission-controllers/) used to enforce a collection of security and administrative policies across our kubernetes clusters. Each of the authorizrs (https://github.com/UKHomeOffice/policy-admission/tree/master/pkg/authorize) are enabled individually via the command option --authorizer=NAME:CONFIG_PATH (note if no configuration path is given we use the default configuration for that authorizer).
+
+```shell
+[jest@starfury policy-admission]$ bin/policy-admission help
+NAME:
+   policy-admission - is a service used to enforce secuirty policy within a cluster
+
+USAGE:
+    [global options] command [command options] [arguments...]
+
+VERSION:
+   v0.0.3 (git+sha: c7d426b-dirty)
+
+AUTHOR:
+   Rohith Jayawardene <gambol99@gmail.com>
+
+COMMANDS:
+     help, h  Shows a list of commands or help for one command
+
+GLOBAL OPTIONS:
+   --listen INTERFACE    network interace the service should listen on INTERFACE (default: ":8443") [$LISTEN]
+   --tls-cert PATH       path to a file containing the tls certificate PATH [$TLS_CERT]
+   --tls-key PATH        path to a file containing the tls key PATH [$TLS_KEY]
+   --authorizer value    enable a admission authorizer, the format is name=config_path (i.e securitycontext=config.yaml)
+   --namespace NAME      namespace to create denial events (optional as we can try and discover) NAME (default: "kube-admission") [$KUBE_NAMESPACE]
+   --enable-events BOOL  indicates you wish to log kubernetes events on denials BOOL [$ENABLE_EVENTS]
+   --help, -h            show help
+   --version, -v         print the version
+```
+
+Note, the configuration is auto-reloaded, so you can chunk the configuration files in the [configmap](https://kubernetes.io/docs/tasks/configure-pod-container/configmap/) and on changes the authorizer will automatically pick on the changes.
+
+#### **Namespaces**
+
+The [namespaces](https://github.com/UKHomeOffice/policy-admission/tree/master/pkg/authorize/namespaces) is used to enforce metadata on the project namespaces. The plugin will trap any creations and updates to namespaces and enforce the have specified annotations and labels.
+
+```YAML
+# ignore the following namespaces
+ignore-namespaces:
+- default
+- kube-public
+- kube-system
+attributes:
+- required: true
+  name: project
+  type: annotation
+- required: true
+  name: owner
+  type: annotation
+  validate: ^.*@.*\.gov.uk$
+- required: true
+  name: support-contacts
+  type: annotation
+- required: true
+  name: mylabel
+  type: label
+```
+
+#### **Pod Security Policies / Security Context**
+
+Due to an issue in the current code base whereby if a user has RBAC access to multiple policies a random one will be chosen those authorizer reuses the kubernetes codebase but fixes the issue. The configuration for the authorizer is;
+
+```go
+// Config the security policies configuration
+type Config struct {
+	// Defaul is the name of the default policy to user
+	Default string `yaml:"default"`
+	// IgnoreNamespaces is a collection of namespace to bypass enforcement
+	IgnoreNamespaces []string `yaml:"ignored-namespaces"`
+	// Policies is a list of pod security policies which are available
+	Policies map[string]extensions.PodSecurityPolicySpec `yaml:"policies"`
+	// NamespaceMapping is a predefined list of namespace to policy mapping
+	NamespaceMapping map[string]string `yaml:"namespace-mapping"`
+}
+```
+
+An example of a default and privileged policy can be found [here](https://github.com/UKHomeOffice/policy-admission/blob/master/pkg/authorize/securitycontext/config_test.yml).
+
+Note, unlike in the kubernetes PSP the selection is performed via RBAC in this authorizer you have a default policy, a predefined mapping for namespace if specified and you can also use namespace annotation to selectively choose the policy.
+
+```YAML
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test
+  annotations:
+    policy-admission.acp.homeoffice.gov.uk/securitycontext: privileged
+```
+
+The authorizer reuses the kubernetes codebase to validate the pod security policy.
+
+#### **Images**
+
+This is authorizer providers a mechanism to control which docker repositories pods are permitted to reference. Again the formula is similar to the rest where by you have a default policy defined in the configuration and then permitted to customize at a namespace level via annotation.
+
+
+Using the annotation.
+
+```YAML
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test
+  annotations:
+    policy-admission.acp.homeoffice.gov.uk/images: ^docker.io/ukhomehomeoffice/.*$, quay.io/ukhomehomeoffice/.*$
+```
+
+#### **Tolerations & Taints**
+
+The current pod tolerations admission gave more headache then features so we combined the enforcement into an authorizer. The behaviors is as such.
+
+* Check the pod tolerations against the default whitelist defined in the configuration.
+* If an annotation exists on the namespace, check the pod against the whitelist
+
+The configuration for the authorizer is
+
+```go
+// Config is the configuration for the taint authorizer
+type Config struct {
+	// IgnoreNamespaces is list of namespace to
+	IgnoreNamespaces []string `yaml:"ignored-namespaces" json:"ignored-namespaces"`
+	// DefaultWhitelist is default whitelist applied to all unless a namespace has one
+	DefaultWhitelist []core.Toleration `yaml:"default-whitelist" json:"default-whitelist"`
+}
+```
+
+An example config is;
+
+```YAML
+ignored-namespaces:
+- kube-admission
+- kube-system
+- logging
+- sysdig-agent
+default-whitelist:
+- key: node.alpha.kubernetes.io/notReady
+  operator: '*'
+  value: '*'
+  effect: '*'
+- key: node.alpha.kubernetes.io/unreachable
+  operator: '*'
+  value: '*'
+  effect: '*'
+- key: dedicated
+  operator: '*'
+  value: backend
+  effect: '*'
+- key: dedicated
+  operator: '*'
+  value: liberal
+  effect: '*'
+- key: dedicated
+  operator: '*'
+  value: strict
+  effect: '*'
+```
+
+For the namespace whitelist annotation the tolerations must be specified in json for:
+
+```YAML
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test
+  annotations:
+    policy-admission.acp.homeoffice.gov.uk/tolerations: |
+      [
+        {
+          "key": "dedicated",
+          "operator": "*",
+          "value": "compute",
+          "effect": "*"
+        },
+        {
+          "key": "dedicated",
+          "operator": "*",
+          "value": "liberal",
+          "effect": "*"
+        },
+        {
+          "key": "dedicated",
+          "operator": "*",
+          "value": "strict",
+          "effect": "*"
+        }
+      ]
+```
