@@ -64,7 +64,7 @@ func (c *authorizer) Admit(_ kubernetes.Interface, namespace *v1.Namespace, obje
 	// @step: check the toleration is permitted via the whitelist
 	for i, toleration := range pod.Spec.Tolerations {
 		if matched := isWhiteListed(toleration, whitelist); !matched {
-			errs = append(errs, field.Forbidden(field.NewPath("whitelist"), fmt.Sprintf("pod tolerations %d denied by whitelist", i)))
+			errs = append(errs, field.Forbidden(field.NewPath("whitelist"), fmt.Sprintf("pod.tolerations[%d] denied by whitelist", i)))
 		}
 	}
 
