@@ -58,6 +58,18 @@ attributes:
   type: label
 ```
 
+#### **Ingress Domains**
+
+-----------
+Ingress-admission is a [external admissions controller](https://kubernetes.io/docs/admin/extensible-admission-controllers/) used to control the domains which a namespace can request. At present in a multi-tenanted environment the default [ingress controller](https://github.com/kubernetes/ingress) for kubernetes doesn't provide any control as to which domains a ingress resource can use; meaning anyone can capture traffic from any domains / paths. Given the namespace is the one element we have complete control over *(for us anyhow)*, the admission controller uses this as a reference point for control.
+
+The annotation *"ingress-admission.acp.homeoffice.gov.uk/domains"* applied to the namespace is used to control which domains the namespace is permitted to request. The value is a comma separated list of domains;
+
+```shell
+$ kubectl annotate namespace \
+mynamespace ingress-admission.acp.homeoffice.gov.uk/domains="hostname.domain.com,*.wild.domain.com"
+```
+
 #### **Pod Security Policies / Security Context**
 
 Due to an issue in the current code base whereby if a user has RBAC access to multiple policies a random one will be chosen those authorizer reuses the kubernetes codebase but fixes the issue. The configuration for the authorizer is;
