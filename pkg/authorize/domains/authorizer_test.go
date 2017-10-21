@@ -18,16 +18,18 @@ package domains
 
 import (
 	"testing"
+	"time"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
-	core "k8s.io/kubernetes/pkg/api"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/client-go/kubernetes/fake"
+	core "k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 )
 
@@ -41,13 +43,13 @@ func TestDefaultConfig(t *testing.T) {
 	assert.NotNil(t, NewDefaultConfig())
 }
 
-func TestNewTolerationAuthorizer(t *testing.T) {
+func TestNewDomainsAuthorizer(t *testing.T) {
 	e, err := New(newTestConfig())
 	assert.NotNil(t, e)
 	assert.NoError(t, err)
 }
 
-func TestTolerationAuthorizer(t *testing.T) {
+func TestDomainsAuthorizer(t *testing.T) {
 	checks := map[string]domainsCheck{
 		"check the ingress is denied when no annotation": {
 			Hostname: "test.domain.com",
@@ -125,8 +127,12 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]domainsCheck)
 		if check.Whitelist != "" {
 			namespace.Annotations[Annotation] = check.Whitelist
 		}
+		client := fake.NewSimpleClientset()
+		client.CoreV1().Namespaces().Create(namespace)
+		mcache := cache.New(1*time.Minute, 1*time.Minute)
+
 		ingress := newTestIngress(check.Hostname)
-		assert.Equal(t, check.Errors, c.svc.Admit(nil, namespace, ingress), "case: '%s' result not as expected", desc)
+		assert.Equal(t, check.Errors, c.svc.Admit(client, mcache, ingress), "case: '%s' result not as expected", desc)
 	}
 }
 

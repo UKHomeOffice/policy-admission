@@ -18,23 +18,25 @@ package securitycontext
 
 import (
 	"testing"
+	"time"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 )
 
 type podCheck struct {
-	context   *core.PodSecurityContext
-	errors    field.ErrorList
-	namespace *v1.Namespace
-	ok        bool
-	pod       *core.Pod
-	policy    string
+	Annotation string
+	Context    *core.PodSecurityContext
+	Errors     field.ErrorList
+	Namespace  *v1.Namespace
+	Pod        *core.Pod
 }
 
 func TestNew(t *testing.T) {
@@ -52,9 +54,9 @@ func TestNewFromFile(t *testing.T) {
 func TestProviderNotFound(t *testing.T) {
 	checks := map[string]podCheck{
 		"check we get a provider not found error": {
-			context: &core.PodSecurityContext{},
-			policy:  "not_there",
-			errors: field.ErrorList{
+			Context:    &core.PodSecurityContext{},
+			Annotation: "not_there",
+			Errors: field.ErrorList{
 				{
 					BadValue: "not_there",
 					Detail:   "policy does not exist",
@@ -68,7 +70,7 @@ func TestProviderNotFound(t *testing.T) {
 }
 
 func TestAllowCaps(t *testing.T) {
-	pod := newDefaultPod()
+	pod := newTestPod()
 	pod.Spec.Containers = []core.Container{
 		{
 			Name:  "test-1",
@@ -82,9 +84,16 @@ func TestAllowCaps(t *testing.T) {
 	}
 	checks := map[string]podCheck{
 		"checking the pods with no non-root fail on default policy": {
-			pod:    pod,
-			policy: "default",
-			errors: field.ErrorList{},
+			Annotation: "default",
+			Pod:        pod,
+			Errors: field.ErrorList{
+				{
+					BadValue: "NET_ADMIN",
+					Detail:   "capability may not be added",
+					Field:    "capabilities.add",
+					Type:     field.ErrorTypeInvalid,
+				},
+			},
 		},
 	}
 	checkAuthorizer(t, checks)
@@ -92,7 +101,7 @@ func TestAllowCaps(t *testing.T) {
 
 /*
 func TestRunNonRootChecks(t *testing.T) {
-	pod := newDefaultPod()
+	pod := newTestPod()
 	pod.Spec.Containers = []core.Container{
 		{
 			Name:            "test-1",
@@ -115,8 +124,8 @@ func TestRunNonRootChecks(t *testing.T) {
 func TestHostNetworkPodChecks(t *testing.T) {
 	checks := map[string]podCheck{
 		"checking the host network is denied in default": {
-			context: &core.PodSecurityContext{HostNetwork: true},
-			errors: field.ErrorList{
+			Context: &core.PodSecurityContext{HostNetwork: true},
+			Errors: field.ErrorList{
 				{
 					BadValue: true,
 					Detail:   "Host network is not allowed to be used",
@@ -126,19 +135,15 @@ func TestHostNetworkPodChecks(t *testing.T) {
 			},
 		},
 		"checking the host network is permitted with privileged": {
-			context: &core.PodSecurityContext{HostNetwork: true},
-			policy:  "privileged",
-			ok:      true,
-		},
-		"checking the default policy is working": {
-			context: &core.PodSecurityContext{HostNetwork: true},
+			Annotation: "privileged",
+			Context:    &core.PodSecurityContext{HostNetwork: true},
 		},
 	}
 	checkAuthorizer(t, checks)
 }
 
 func TestPodVolumeChecks(t *testing.T) {
-	hostPathPod := newDefaultPod()
+	hostPathPod := newTestPod()
 	hostPathPod.Spec.Volumes = []core.Volume{
 		{
 			Name:         "root",
@@ -146,7 +151,7 @@ func TestPodVolumeChecks(t *testing.T) {
 		},
 	}
 
-	secretPod := newDefaultPod()
+	secretPod := newTestPod()
 	secretPod.Spec.Volumes = []core.Volume{
 		{
 			Name:         "root",
@@ -156,8 +161,8 @@ func TestPodVolumeChecks(t *testing.T) {
 
 	checks := map[string]podCheck{
 		"check the pod is denied host path volume on default": {
-			pod: hostPathPod,
-			errors: field.ErrorList{
+			Pod: hostPathPod,
+			Errors: field.ErrorList{
 				{
 					BadValue: "hostPath",
 					Detail:   "hostPath volumes are not allowed to be used",
@@ -167,20 +172,18 @@ func TestPodVolumeChecks(t *testing.T) {
 			},
 		},
 		"check the pod is permitted host path volume on privileged": {
-			pod:    hostPathPod,
-			policy: "privileged",
-			ok:     true,
+			Pod:        hostPathPod,
+			Annotation: "privileged",
 		},
 		"check the volume type secret is enabled": {
-			pod: secretPod,
-			ok:  true,
+			Pod: secretPod,
 		},
 	}
 	checkAuthorizer(t, checks)
 }
 
 func TestPodPrivilegedChecks(t *testing.T) {
-	pod := newDefaultPod()
+	pod := newTestPod()
 	priv := true
 	pod.Spec.Containers = []core.Container{
 		{
@@ -191,15 +194,76 @@ func TestPodPrivilegedChecks(t *testing.T) {
 	}
 	checks := map[string]podCheck{
 		"checking the privileged container is denied on default policy": {
-			pod: pod,
+			Pod: pod,
+			Errors: field.ErrorList{
+				{
+					BadValue: true,
+					Detail:   "Privileged containers are not allowed",
+					Field:    "spec.securityContext.privileged",
+					Type:     field.ErrorTypeInvalid,
+				},
+			},
 		},
 		"checking the privileged container is allowed via privileged policy": {
-			pod:    pod,
-			policy: "privileged",
-			ok:     true,
+			Annotation: "privileged",
+			Pod:        pod,
 		},
 	}
 	checkAuthorizer(t, checks)
+}
+
+func checkAuthorizer(t *testing.T, checks map[string]podCheck) {
+	p, err := New(newTestConfig())
+	require.NoError(t, err)
+
+	for name, check := range checks {
+		pod := check.Pod
+		if pod == nil {
+			pod = newTestPod()
+		}
+		namespace := check.Namespace
+		if namespace == nil {
+			namespace = newTestNamespace()
+		}
+		if check.Annotation != "" {
+			namespace.Annotations[Annotation] = check.Annotation
+		}
+		client := fake.NewSimpleClientset()
+		client.CoreV1().Namespaces().Create(namespace)
+		mcache := cache.New(1*time.Minute, 1*time.Minute)
+
+		if check.Context != nil {
+			pod.Spec.SecurityContext = check.Context
+		}
+		assert.Equal(t, check.Errors, p.Admit(client, mcache, pod), "case: '%s', violation mismatched", name)
+	}
+}
+
+func newTestPod() *core.Pod {
+	return &core.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "pod",
+			Namespace:   "test",
+			Annotations: map[string]string{},
+		},
+		Spec: core.PodSpec{
+			Containers: []core.Container{
+				{
+					Name:            "test-pod",
+					SecurityContext: &core.SecurityContext{},
+				},
+			},
+		},
+	}
+}
+
+func newTestNamespace() *v1.Namespace {
+	return &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "test",
+			Annotations: make(map[string]string, 0),
+		},
+	}
 }
 
 func newTestConfig() *Config {
@@ -242,58 +306,5 @@ func newTestConfig() *Config {
 				Volumes:                []extensions.FSType{extensions.All},
 			},
 		},
-	}
-}
-
-func newDefaultPod() *core.Pod {
-	return &core.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        "my-pod",
-			Namespace:   "my-namespace",
-			Annotations: map[string]string{},
-		},
-		Spec: core.PodSpec{
-			Containers: []core.Container{
-				{
-					Name:            "test-pod",
-					SecurityContext: &core.SecurityContext{},
-				},
-			},
-		},
-	}
-}
-
-func checkAuthorizer(t *testing.T, checks map[string]podCheck) {
-	p, err := New(newTestConfig())
-	require.NoError(t, err)
-
-	for name, check := range checks {
-		pod := check.pod
-		if pod == nil {
-			pod = newDefaultPod()
-		}
-		namespace := check.namespace
-		if namespace == nil {
-			namespace = &v1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "test",
-					Annotations: make(map[string]string, 0),
-				},
-			}
-		}
-		if check.policy != "" {
-			namespace.Annotations[Annotation] = check.policy
-		}
-
-		if check.context != nil {
-			pod.Spec.SecurityContext = check.context
-		}
-
-		violations := p.Admit(nil, namespace, pod)
-		ok := len(violations) == 0
-		assert.Equal(t, check.ok, ok, "case: '%s', expected: %t, got: %t", name, check.ok, ok)
-		if len(check.errors) > 0 {
-			assert.Equal(t, check.errors, violations, "case: '%s', violation mismatched", name)
-		}
 	}
 }

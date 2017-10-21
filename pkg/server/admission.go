@@ -31,10 +31,8 @@ import (
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	admission "k8s.io/api/admission/v1alpha1"
-	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	core "k8s.io/kubernetes/pkg/api"
 )
 
@@ -119,22 +117,6 @@ func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (bo
 	}
 	status.Object = object
 
-	// @step: get namespace for this object
-	cached, err := utils.GetCachedResource(c.client, c.resourceCache, review.Spec.Namespace, resourceTimeout, namespaceExpiry,
-		func(client kubernetes.Interface, name string) (interface{}, error) {
-			resource, err := client.CoreV1().Namespaces().Get(name, metav1.GetOptions{})
-			if err != nil {
-				return nil, errors.New("unable to retrieve namespace")
-			}
-			return resource, nil
-		})
-	if err != nil {
-		status.Detail = err.Error()
-		return false, status, nil
-	}
-
-	namespace := (cached).(*v1.Namespace)
-
 	// @step: iterate the authorizers and fail on first refusal
 	// @TODO: run the authorizers in parallel on multi-cores
 	for _, provider := range c.providers {
@@ -147,7 +129,7 @@ func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (bo
 			continue
 		}
 
-		if errs := provider.Admit(c.client, namespace, object); len(errs) > 0 {
+		if errs := provider.Admit(c.client, c.resourceCache, object); len(errs) > 0 {
 			var reasons []string
 			for _, x := range errs {
 				reasons = append(reasons, fmt.Sprintf("%s", x.Detail))

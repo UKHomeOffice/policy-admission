@@ -17,7 +17,7 @@ limitations under the License.
 package api
 
 import (
-	v1 "k8s.io/api/core/v1"
+	"github.com/patrickmn/go-cache"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
@@ -35,7 +35,7 @@ var (
 // Authorize is the interface for a authorizer
 type Authorize interface {
 	// Admit makes a decision on the pod acceptance
-	Admit(kubernetes.Interface, *v1.Namespace, metav1.Object) field.ErrorList
+	Admit(kubernetes.Interface, *cache.Cache, metav1.Object) field.ErrorList
 	// Name is the name of the authorizer
 	Name() string
 	// FilterOn return the filter for the authorizer

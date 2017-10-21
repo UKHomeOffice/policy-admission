@@ -25,8 +25,8 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
+	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
@@ -58,10 +58,10 @@ func newWrapper(name, path string) (api.Authorize, error) {
 }
 
 // Admit makes a decision on the pod acceptance
-func (c *wrapper) Admit(client kubernetes.Interface, namespace *v1.Namespace, object metav1.Object) field.ErrorList {
+func (c *wrapper) Admit(client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
 	c.RLock()
 	defer c.RUnlock()
-	return c.provider.Admit(client, namespace, object)
+	return c.provider.Admit(client, mcache, object)
 }
 
 // Name is the name of the provider
