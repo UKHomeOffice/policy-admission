@@ -67,6 +67,29 @@ func TestProviderNotFound(t *testing.T) {
 	checkAuthorizer(t, checks)
 }
 
+func TestAllowCaps(t *testing.T) {
+	pod := newDefaultPod()
+	pod.Spec.Containers = []core.Container{
+		{
+			Name:  "test-1",
+			Image: "nginx",
+			SecurityContext: &core.SecurityContext{
+				Capabilities: &core.Capabilities{
+					Add: []core.Capability{"NET_ADMIN"},
+				},
+			},
+		},
+	}
+	checks := map[string]podCheck{
+		"checking the pods with no non-root fail on default policy": {
+			pod:    pod,
+			policy: "default",
+			errors: field.ErrorList{},
+		},
+	}
+	checkAuthorizer(t, checks)
+}
+
 /*
 func TestRunNonRootChecks(t *testing.T) {
 	pod := newDefaultPod()
@@ -191,8 +214,8 @@ func newTestConfig() *Config {
 				FSGroup:                  extensions.FSGroupStrategyOptions{Rule: extensions.FSGroupStrategyRunAsAny},
 				RequiredDropCapabilities: []core.Capability{},
 				RunAsUser: extensions.RunAsUserStrategyOptions{
-					Rule:   extensions.RunAsUserStrategyMustRunAsNonRoot,
-					Ranges: []extensions.UserIDRange{{Min: 1024, Max: 65535}},
+					Rule: extensions.RunAsUserStrategyMustRunAsNonRoot,
+					//Ranges: []extensions.UserIDRange{{Min: 1024, Max: 65535}},
 				},
 				SELinux:            extensions.SELinuxStrategyOptions{Rule: extensions.SELinuxStrategyRunAsAny},
 				SupplementalGroups: extensions.SupplementalGroupsStrategyOptions{Rule: extensions.SupplementalGroupsStrategyRunAsAny},
