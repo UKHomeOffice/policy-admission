@@ -32,32 +32,6 @@ GLOBAL OPTIONS:
 
 Note, the configuration is auto-reloaded, so you can chunk the configuration files in the [configmap](https://kubernetes.io/docs/tasks/configure-pod-container/configmap/) and on changes the authorizer will automatically pick on the changes.
 
-#### **Namespaces**
-
-The [namespaces](https://github.com/UKHomeOffice/policy-admission/tree/master/pkg/authorize/namespaces) is used to enforce metadata on the project namespaces. The plugin will trap any creations and updates to namespaces and enforce the have specified annotations and labels.
-
-```YAML
-# ignore the following namespaces
-ignore-namespaces:
-- default
-- kube-public
-- kube-system
-attributes:
-- required: true
-  name: project
-  type: annotation
-- required: true
-  name: owner
-  type: annotation
-  validate: ^.*@.*\.gov.uk$
-- required: true
-  name: support-contacts
-  type: annotation
-- required: true
-  name: mylabel
-  type: label
-```
-
 #### **Ingress Domains**
 
 -----------
