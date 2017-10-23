@@ -31,6 +31,11 @@ import (
 	"k8s.io/kubernetes/pkg/apis/extensions"
 )
 
+var (
+	isTrue  = true
+	isFalse = false
+)
+
 type podCheck struct {
 	Annotation string
 	Context    *core.PodSecurityContext
@@ -79,6 +84,7 @@ func TestAllowCaps(t *testing.T) {
 				Capabilities: &core.Capabilities{
 					Add: []core.Capability{"NET_ADMIN"},
 				},
+				RunAsNonRoot: &isTrue,
 			},
 		},
 	}
@@ -99,32 +105,54 @@ func TestAllowCaps(t *testing.T) {
 	checkAuthorizer(t, checks)
 }
 
-/*
 func TestRunNonRootChecks(t *testing.T) {
-	pod := newTestPod()
-	pod.Spec.Containers = []core.Container{
+	nonroot := newTestPod()
+	nonroot.Spec.Containers = []core.Container{
 		{
 			Name:            "test-1",
 			Image:           "nginx",
 			SecurityContext: &core.SecurityContext{},
 		},
 	}
+	root := newTestPod()
+	root.Spec.Containers = []core.Container{
+		{
+			Name:            "test-1",
+			Image:           "nginx",
+			SecurityContext: &core.SecurityContext{RunAsNonRoot: &isFalse},
+		},
+	}
+	unset := newTestPod()
+	unset.Spec.Containers[0].SecurityContext.RunAsNonRoot = nil
 
 	checks := map[string]podCheck{
 		"checking the pods with no non-root fail on default policy": {
-			pod:    pod,
-			policy: "default",
-			errors: field.ErrorList{},
+			Pod: nonroot,
+			Errors: field.ErrorList{
+				{
+					BadValue: false,
+					Detail:   "RunAsNonRoot must be true for container test-1",
+					Field:    "securityContext.runAsNonRoot",
+					Type:     field.ErrorTypeInvalid,
+				},
+			},
+		},
+		"check running as root is ok for privileged containers": {
+			Pod:        root,
+			Annotation: "privileged",
+		},
+		"check running as root is fine when not defined": {
+			Pod:        unset,
+			Annotation: "privileged",
 		},
 	}
 	checkAuthorizer(t, checks)
 }
-*/
 
 func TestHostNetworkPodChecks(t *testing.T) {
 	checks := map[string]podCheck{
 		"checking the host network is denied in default": {
-			Context: &core.PodSecurityContext{HostNetwork: true},
+			Context: &core.PodSecurityContext{HostNetwork: true, RunAsNonRoot: &isTrue},
 			Errors: field.ErrorList{
 				{
 					BadValue: true,
@@ -136,7 +164,7 @@ func TestHostNetworkPodChecks(t *testing.T) {
 		},
 		"checking the host network is permitted with privileged": {
 			Annotation: "privileged",
-			Context:    &core.PodSecurityContext{HostNetwork: true},
+			Context:    &core.PodSecurityContext{HostNetwork: true, RunAsNonRoot: &isTrue},
 		},
 	}
 	checkAuthorizer(t, checks)
@@ -184,12 +212,11 @@ func TestPodVolumeChecks(t *testing.T) {
 
 func TestPodPrivilegedChecks(t *testing.T) {
 	pod := newTestPod()
-	priv := true
 	pod.Spec.Containers = []core.Container{
 		{
 			Name:            "test",
 			Image:           "nginx",
-			SecurityContext: &core.SecurityContext{Privileged: &priv},
+			SecurityContext: &core.SecurityContext{Privileged: &isTrue, RunAsNonRoot: &isTrue},
 		},
 	}
 	checks := map[string]podCheck{
@@ -240,6 +267,7 @@ func checkAuthorizer(t *testing.T, checks map[string]podCheck) {
 }
 
 func newTestPod() *core.Pod {
+	isTrue := true
 	return &core.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "pod",
@@ -250,7 +278,7 @@ func newTestPod() *core.Pod {
 			Containers: []core.Container{
 				{
 					Name:            "test-pod",
-					SecurityContext: &core.SecurityContext{},
+					SecurityContext: &core.SecurityContext{RunAsNonRoot: &isTrue},
 				},
 			},
 		},
@@ -279,7 +307,6 @@ func newTestConfig() *Config {
 				RequiredDropCapabilities: []core.Capability{},
 				RunAsUser: extensions.RunAsUserStrategyOptions{
 					Rule: extensions.RunAsUserStrategyMustRunAsNonRoot,
-					//Ranges: []extensions.UserIDRange{{Min: 1024, Max: 65535}},
 				},
 				SELinux:            extensions.SELinuxStrategyOptions{Rule: extensions.SELinuxStrategyRunAsAny},
 				SupplementalGroups: extensions.SupplementalGroupsStrategyOptions{Rule: extensions.SupplementalGroupsStrategyRunAsAny},

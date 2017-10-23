@@ -28,6 +28,11 @@ import (
 	core "k8s.io/kubernetes/pkg/api"
 )
 
+var (
+	isTrue  = true
+	isFalse = false
+)
+
 func TestHealthHandler(t *testing.T) {
 	requests := []request{
 		{URI: "/health", ExpectedCode: http.StatusOK},
@@ -43,8 +48,6 @@ func TestAdmitHandlerBad(t *testing.T) {
 }
 
 func TestAdmitHandlerChecks(t *testing.T) {
-	priv := false
-	privilegedOn := true
 	requests := []request{
 		{
 			// ensure a default pod can get through
@@ -52,7 +55,7 @@ func TestAdmitHandlerChecks(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "test"},
 				Spec: core.PodSpec{
 					Containers: []core.Container{
-						{Name: "test", Image: "nginx", SecurityContext: &core.SecurityContext{Privileged: &priv}},
+						{Name: "test", Image: "nginx", SecurityContext: &core.SecurityContext{Privileged: &isFalse, RunAsNonRoot: &isTrue}},
 					},
 					SecurityContext: &core.PodSecurityContext{},
 				},
@@ -126,7 +129,7 @@ func TestAdmitHandlerChecks(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "test"},
 				Spec: core.PodSpec{
 					Containers: []core.Container{
-						{Name: "test", Image: "nginx", SecurityContext: &core.SecurityContext{Privileged: &privilegedOn}},
+						{Name: "test", Image: "nginx", SecurityContext: &core.SecurityContext{Privileged: &isTrue, RunAsNonRoot: &isTrue}},
 					},
 					SecurityContext: &core.PodSecurityContext{},
 				},
@@ -146,12 +149,32 @@ func TestAdmitHandlerChecks(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "kube-system"},
 				Spec: core.PodSpec{
 					Containers: []core.Container{
-						{Name: "test", Image: "nginx", SecurityContext: &core.SecurityContext{Privileged: &privilegedOn}},
+						{Name: "test", Image: "nginx", SecurityContext: &core.SecurityContext{Privileged: &isTrue, RunAsNonRoot: &isTrue}},
 					},
 					SecurityContext: &core.PodSecurityContext{},
 				},
 			},
 			ExpectedStatus: &admission.AdmissionReviewStatus{Allowed: true},
+		},
+		{
+			// ensure a container cannot run without run-as-nonroot
+			Pod: &core.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "test"},
+				Spec: core.PodSpec{
+					Containers: []core.Container{
+						{Name: "test", Image: "nginx", SecurityContext: &core.SecurityContext{Privileged: &isFalse}},
+					},
+					SecurityContext: &core.PodSecurityContext{},
+				},
+			},
+			ExpectedStatus: &admission.AdmissionReviewStatus{
+				Result: &metav1.Status{
+					Code:    http.StatusForbidden,
+					Message: "RunAsNonRoot must be true for container test",
+					Reason:  metav1.StatusReasonForbidden,
+					Status:  metav1.StatusFailure,
+				},
+			},
 		},
 	}
 	newTestAdmissionWithSecurityContext().runTests(t, requests)
