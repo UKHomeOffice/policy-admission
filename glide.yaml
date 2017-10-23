@@ -24,7 +24,6 @@ import:
   - pkg/api
   - pkg/apis/extensions
   - pkg/security/podsecuritypolicy
-  - pkg/securitycontext
 testImport:
 - package: github.com/stretchr/testify
   subpackages:
