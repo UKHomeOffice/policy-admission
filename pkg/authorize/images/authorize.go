@@ -26,7 +26,6 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
 	"github.com/patrickmn/go-cache"
-	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
@@ -43,12 +42,18 @@ type authorizer struct {
 }
 
 // Admit is responsible for authorizing the pod
-func (c *authorizer) Admit(client kubernetes.Interface, namespace *v1.Namespace, object metav1.Object) field.ErrorList {
+func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
 	var errs field.ErrorList
 	var apply []*regexp.Regexp
 
 	pod := object.(*core.Pod)
 	apply = append(apply, c.policies...)
+
+	// @step: get namespace for this object
+	namespace, err := utils.GetCachedNamespace(client, mcache, pod.Namespace)
+	if err != nil {
+		return append(errs, field.InternalError(field.NewPath("namespace"), err))
+	}
 
 	// @check if there is a namespace override
 	annotation, found := namespace.GetAnnotations()[Annotation]

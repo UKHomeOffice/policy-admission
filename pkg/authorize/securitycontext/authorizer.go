@@ -17,12 +17,13 @@ limitations under the License.
 package securitycontext
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
-	"k8s.io/api/core/v1"
+	"github.com/patrickmn/go-cache"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
@@ -41,14 +42,17 @@ type authorizer struct {
 }
 
 // Admit is responsible for adding a policy to the enforcers
-func (c *authorizer) Admit(_ kubernetes.Interface, namespace *v1.Namespace, object metav1.Object) field.ErrorList {
+func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
 	var errs field.ErrorList
 
-	pod := object.(*core.Pod)
+	pod, ok := object.(*core.Pod)
+	if !ok {
+		return append(errs, field.InternalError(field.NewPath("object"), errors.New("invalid object, expected pod")))
+	}
 	name := c.config.Default
 
 	// @check is this namespace being ignored
-	if utils.Contained(namespace.Name, c.config.IgnoreNamespaces) {
+	if utils.Contained(pod.Namespace, c.config.IgnoreNamespaces) {
 		return errs
 	}
 
@@ -56,6 +60,13 @@ func (c *authorizer) Admit(_ kubernetes.Interface, namespace *v1.Namespace, obje
 	if override, found := c.config.defaultPolicy(pod.Namespace); found {
 		name = override
 	}
+
+	// @step: get namespace for this object
+	namespace, err := utils.GetCachedNamespace(client, mcache, pod.Namespace)
+	if err != nil {
+		return append(errs, field.InternalError(field.NewPath("namespace"), err))
+	}
+
 	// @check if the nanespace if annontated
 	if selected, found := namespace.GetAnnotations()[Annotation]; found {
 		name = selected

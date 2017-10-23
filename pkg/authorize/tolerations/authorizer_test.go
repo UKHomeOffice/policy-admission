@@ -19,14 +19,17 @@ package tolerations
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/kubernetes/pkg/api"
 )
 
@@ -233,10 +236,6 @@ func newTestAuthorizer(t *testing.T, config *Config) *testAuthorizer {
 
 func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]tolerationCheck) {
 	for desc, check := range checks {
-		namespace := check.Namespace
-		if namespace == nil {
-			namespace = newTestNamespace()
-		}
 		pod := check.Pod
 		if pod == nil {
 			pod = newTestPod()
@@ -244,13 +243,20 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]tolerationChe
 		if len(check.PodTolerations) > 0 {
 			pod.Spec.Tolerations = check.PodTolerations
 		}
+		namespace := check.Namespace
+		if namespace == nil {
+			namespace = newTestNamespace()
+		}
 		if len(check.Whitelist) > 0 {
 			encoded, err := json.Marshal(&check.Whitelist)
 			require.NoError(t, err, "case '%s' unable to encode whitelist", desc)
 			namespace.Annotations[Annotation] = string(encoded)
 		}
+		client := fake.NewSimpleClientset()
+		client.CoreV1().Namespaces().Create(namespace)
+		mcache := cache.New(1*time.Minute, 1*time.Minute)
 
-		assert.Equal(t, check.Errors, c.svc.Admit(nil, namespace, pod), "case: '%s' result not as expected", desc)
+		assert.Equal(t, check.Errors, c.svc.Admit(client, mcache, pod), "case: '%s' result not as expected", desc)
 	}
 }
 

@@ -91,7 +91,7 @@ func TestAdmitHandlerChecks(t *testing.T) {
 			ExpectedStatus: &admission.AdmissionReviewStatus{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
-					Message: "unable to retrieve namespace",
+					Message: "unable to retrieve namespace: namespaces \"not-there\" not found",
 					Reason:  metav1.StatusReasonForbidden,
 					Status:  metav1.StatusFailure,
 				},

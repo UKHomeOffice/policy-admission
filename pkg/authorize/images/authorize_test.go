@@ -18,13 +18,16 @@ package images
 
 import (
 	"testing"
+	"time"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
+	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/kubernetes/pkg/api"
 )
 
@@ -131,7 +134,11 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]imageCheck) {
 		if image != "" {
 			pod.Spec.Containers[0].Image = image
 		}
-		assert.Equal(t, check.Errors, c.svc.Admit(nil, namespace, pod), "case: '%s' result not as expected", desc)
+		client := fake.NewSimpleClientset()
+		client.CoreV1().Namespaces().Create(namespace)
+		mcache := cache.New(1*time.Minute, 1*time.Minute)
+
+		assert.Equal(t, check.Errors, c.svc.Admit(client, mcache, pod), "case: '%s' result not as expected", desc)
 	}
 }
 

@@ -1,13 +1,12 @@
 /*
 Copyright 2017 Home Office All rights reserved.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
+Unless required by applicable w or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
@@ -19,12 +18,14 @@ package utils
 import (
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
-
 	"github.com/patrickmn/go-cache"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -57,6 +58,26 @@ func NewHTTPServer(listen, cert, key string) (*http.Server, error) {
 	}
 
 	return server, nil
+}
+
+// GetCachedNamespace is responsible for retrieving the namespace via the api
+func GetCachedNamespace(client kubernetes.Interface, mcache *cache.Cache, name string) (*v1.Namespace, error) {
+	key := fmt.Sprintf("ns:%s", name)
+	cached, err := GetCachedResource(client, mcache, key, time.Duration(5*time.Second), time.Duration(3*time.Minute),
+		func(client kubernetes.Interface, keyname string) (interface{}, error) {
+			resource, err := client.CoreV1().Namespaces().Get(name, metav1.GetOptions{})
+			if err != nil {
+				return nil, fmt.Errorf("unable to retrieve namespace: %s", err)
+			}
+
+			return resource, nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	namespace := cached.(*v1.Namespace)
+
+	return namespace, nil
 }
 
 // GetCachedResource is helper method used to retrieve an item from cache or grab and place it there

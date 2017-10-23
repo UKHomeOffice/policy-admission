@@ -91,8 +91,7 @@ func NewDefaultConfig() *Config {
 				FSGroup:                  extensions.FSGroupStrategyOptions{Rule: extensions.FSGroupStrategyRunAsAny},
 				RequiredDropCapabilities: []core.Capability{},
 				RunAsUser: extensions.RunAsUserStrategyOptions{
-					Rule:   extensions.RunAsUserStrategyMustRunAsNonRoot,
-					Ranges: []extensions.UserIDRange{{Min: 1024, Max: 65535}},
+					Rule: extensions.RunAsUserStrategyMustRunAsNonRoot,
 				},
 				SELinux:            extensions.SELinuxStrategyOptions{Rule: extensions.SELinuxStrategyRunAsAny},
 				SupplementalGroups: extensions.SupplementalGroupsStrategyOptions{Rule: extensions.SupplementalGroupsStrategyRunAsAny},
