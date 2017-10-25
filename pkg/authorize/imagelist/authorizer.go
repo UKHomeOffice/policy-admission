@@ -77,7 +77,7 @@ func (c *authorizer) validateImage(fld *field.Path, container []core.Container) 
 		if !found {
 			permit, err = c.handleImageRequest(container.Image)
 			if err != nil {
-				return append(errs, field.InternalError(field.NewPath("imagelist"), fmt.Errorf("communication failure with imageist: %s", err)))
+				return append(errs, field.InternalError(field.NewPath("imagelist"), fmt.Errorf("communication failure with imagelist: %s", err.Error())))
 			}
 		}
 		allowed := permit.(bool)
@@ -92,7 +92,7 @@ func (c *authorizer) validateImage(fld *field.Path, container []core.Container) 
 		c.lcache.Add(container.Image, allowed, expiration)
 
 		if !allowed {
-			errs = append(errs, field.Forbidden(fld.Index(i).Child("image", container.Image), "denied by imagelist policy"))
+			errs = append(errs, field.Invalid(fld.Index(i).Child("image"), container.Image, "denied by imagelist policy"))
 		}
 	}
 
@@ -101,7 +101,8 @@ func (c *authorizer) validateImage(fld *field.Path, container []core.Container) 
 
 // handleImageRequest is resposible for making the request to the upstream service
 func (c *authorizer) handleImageRequest(image string) (bool, error) {
-	uri := fmt.Sprintf("%s/%s", c.endpoint.String, image)
+	uri := fmt.Sprintf("%s/%s", c.endpoint.String(), image)
+
 	req, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
 		return false, err

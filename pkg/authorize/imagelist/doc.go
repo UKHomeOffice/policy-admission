@@ -25,10 +25,8 @@ type Config struct {
 	SkipTLSVerify bool `yaml:"skip-tls-verify" json:"skip-tls-verify"`
 	// IgnoredNamespaces is a list namespaces to ignore
 	IgnoreNamespaces []string `yaml:"ignore-namespaces" json:"ignore-namespaces"`
-	// Name is an arbitary name for this webhook
-	Name string `yaml:"name" json:"name"`
 	// Timeout is the duration between timing out
-	Timeout time.Duration `yaml:timeout" json:"timeout"`
+	Timeout time.Duration `yaml:"timeout" json:"timeout"`
 	// Token is a bearer token to use on requests
 	Token string `yaml:"token" json:"token"`
 }
@@ -37,7 +35,7 @@ type Config struct {
 func NewDefaultConfig() *Config {
 	return &Config{
 		CacheFailure:     time.Duration(1 * time.Minute),
-		CacheSuccess:     time.Duration(3 * time.Minute),
+		CacheSuccess:     time.Duration(5 * time.Minute),
 		IgnoreNamespaces: []string{"kube-system", "kube-admission", "kube-public"},
 		Timeout:          time.Duration(5 * time.Second),
 	}
