@@ -31,8 +31,10 @@ import (
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	admission "k8s.io/api/admission/v1alpha1"
+	v1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	core "k8s.io/kubernetes/pkg/api"
 )
 
@@ -136,6 +138,25 @@ func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (bo
 		object.SetNamespace(review.Spec.Namespace)
 
 		if errs := provider.Admit(c.client, c.resourceCache, object); len(errs) > 0 {
+			// @check if it's an internal provider error and whether we should skip them
+			skipme := false
+			for _, x := range errs {
+				if x.Type == field.ErrorTypeInternal {
+					// @check if the provider is asking as to ignore internal failures
+					if provider.FilterOn().IgnoreOnFailure {
+						log.WithFields(log.Fields{
+							"error":     x.Detail,
+							"namespace": status.Object.GetNamespace(),
+							"status":    status.Object.GetGenerateName(),
+						}).Warn("internal provider error, skipping the provider result")
+						skipme = true
+					}
+				}
+			}
+			if skipme {
+				continue
+			}
+
 			var reasons []string
 			for _, x := range errs {
 				reasons = append(reasons, fmt.Sprintf("%s=%v : %s", x.Field, x.BadValue, x.Detail))
@@ -161,7 +182,7 @@ func (c *Admission) getResourceForReview(kind string, review *admission.Admissio
 	case api.FilterIngresses:
 		object = &extensions.Ingress{}
 	case api.FilterNamespace:
-		object = &extensions.Ingress{}
+		object = &v1.Namespace{}
 	default:
 		return nil, ErrNotSupported
 	}

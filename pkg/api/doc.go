@@ -52,4 +52,6 @@ type Filter struct {
 	Kind string
 	// IgnoreNamespace indicates you wish to ignore the following namespace
 	IgnoreNamespaces []string
+	// IgnoreOnFailure indicates you wish to ignore the provider on internal errors
+	IgnoreOnFailure bool
 }
