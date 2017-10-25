@@ -17,6 +17,7 @@ limitations under the License.
 package images
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -46,7 +47,11 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 	var errs field.ErrorList
 	var apply []*regexp.Regexp
 
-	pod := object.(*core.Pod)
+	pod, ok := object.(*core.Pod)
+	if !ok {
+		return append(errs, field.InternalError(field.NewPath("object"), errors.New("invalid object, expected Pod")))
+	}
+
 	apply = append(apply, c.policies...)
 
 	// @step: get namespace for this object

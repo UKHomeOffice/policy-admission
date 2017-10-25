@@ -24,12 +24,14 @@ import (
 )
 
 var (
-	// FilterPods indicates you want to see pods
-	FilterPods = "Pod"
+	// FilterAdmission indicates you want to see the admission
+	FilterAdmission = "Admission"
 	// FilterIngresses indicates you want to see pods
 	FilterIngresses = "Ingress"
 	// FilterNamespace is a Namespace
 	FilterNamespace = "Namespace"
+	// FilterPods indicates you want to see pods
+	FilterPods = "Pod"
 )
 
 // Authorize is the interface for a authorizer
