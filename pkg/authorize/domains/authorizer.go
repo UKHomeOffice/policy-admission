@@ -107,7 +107,7 @@ func hasDomain(hostname string, whitelist []string) bool {
 func (c *authorizer) FilterOn() api.Filter {
 	return api.Filter{
 		IgnoreNamespaces: c.config.IgnoreNamespaces,
-		Kind:             api.FilterNamespace,
+		Kind:             api.FilterIngresses,
 	}
 }
 
