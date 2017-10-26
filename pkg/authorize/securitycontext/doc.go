@@ -34,13 +34,13 @@ const (
 // Config the security policies configuration
 type Config struct {
 	// Defaul is the name of the default policy to user
-	Default string `yaml:"default"`
+	Default string `yaml:"default" json:"default"`
 	// IgnoreNamespaces is a collection of namespace to bypass enforcement
-	IgnoreNamespaces []string `yaml:"ignored-namespaces"`
+	IgnoreNamespaces []string `yaml:"ignored-namespaces" json:"ignored-namespaces"`
 	// Policies is a list of pod security policies which are available
-	Policies map[string]extensions.PodSecurityPolicySpec `yaml:"policies"`
+	Policies map[string]extensions.PodSecurityPolicySpec `yaml:"policies" json:"policies"`
 	// NamespaceMapping is a predefined list of namespace to policy mapping
-	NamespaceMapping map[string]string `yaml:"namespace-mapping"`
+	NamespaceMapping map[string]string `yaml:"namespace-mapping" json:"namespace-mapping"`
 }
 
 // IsValid checks if the pod authorization config is valid
