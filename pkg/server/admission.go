@@ -126,8 +126,14 @@ func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (bo
 		}
 		// @check if the authorizer is ignoring this namespace
 		if utils.Contained(review.Spec.Namespace, provider.FilterOn().IgnoreNamespaces) {
+			log.WithFields(log.Fields{
+				"name":      object.GetName(),
+				"namespace": review.Spec.Namespace,
+				"provider":  provider.Name(),
+			}).Warn("provider ignoring namespace")
 			continue
 		}
+		object.SetNamespace(review.Spec.Namespace)
 
 		if errs := provider.Admit(c.client, c.resourceCache, object); len(errs) > 0 {
 			var reasons []string
@@ -191,7 +197,8 @@ func New(config *Config, providers []api.Authorize) (*Admission, error) {
 
 	log.Infof("policy admission controller, listen: %s", config.Listen)
 	for _, x := range providers {
-		log.Infof("enabling the authorizer: %s", x.Name())
+		log.Infof("enabling the authorizer: %s, ignored: %s, filter: %s", x.Name(),
+			strings.Join(x.FilterOn().IgnoreNamespaces, ","), x.FilterOn().Kind)
 	}
 
 	c := &Admission{

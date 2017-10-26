@@ -12,7 +12,7 @@ PACKAGES=$(shell go list ./...)
 LFLAGS ?= -X main.GitSHA=${GIT_SHA}
 VETARGS ?= -asmdecl -atomic -bool -buildtags -copylocks -methods -nilfunc -printf -rangeloops -structtags -unsafeptr
 
-.PHONY: test authors changelog build docker static release lint cover vet glide-install
+.PHONY: test authors changelog build docker static release lint cover vet glide-install version
 
 default: build
 
