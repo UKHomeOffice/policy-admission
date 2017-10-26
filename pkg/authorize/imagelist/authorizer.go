@@ -25,6 +25,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"reflect"
 	"time"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
@@ -55,7 +56,8 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 
 	pod, ok := object.(*core.Pod)
 	if !ok {
-		return append(errs, field.InternalError(field.NewPath("object"), errors.New("invalid object, expected Pod")))
+		return append(errs, field.InternalError(field.NewPath("object").Child(reflect.TypeOf(object).String()),
+			errors.New("invalid object, expected Pod")))
 	}
 
 	// @check the init containers are valid

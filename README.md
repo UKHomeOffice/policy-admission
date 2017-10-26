@@ -32,12 +32,12 @@ GLOBAL OPTIONS:
 
 Note, the configuration is auto-reloaded, so you can chunk the configuration files in the [configmap](https://kubernetes.io/docs/tasks/configure-pod-container/configmap/) and on changes the authorizer will automatically pick on the changes.
 
-#### **Ingress Domains**
+#### **Ingress**
 
 -----------
-Ingress-admission is a [external admissions controller](https://kubernetes.io/docs/admin/extensible-admission-controllers/) used to control the domains which a namespace can request. At present in a multi-tenanted environment the default [ingress controller](https://github.com/kubernetes/ingress) for kubernetes doesn't provide any control as to which domains a ingress resource can use; meaning anyone can capture traffic from any domains / paths. Given the namespace is the one element we have complete control over *(for us anyhow)*, the admission controller uses this as a reference point for control.
+The authorizer is a used to control which domains a namespace can request in a ingress resource. At present in a multi-tenanted environment the default [ingress controller](https://github.com/kubernetes/ingress) for kubernetes doesn't provide any control as to which domains a ingress resource can use; meaning anyone can capture traffic from any domains / paths.
 
-The annotation *"ingress-admission.acp.homeoffice.gov.uk/domains"* applied to the namespace is used to control which domains the namespace is permitted to request. The value is a comma separated list of domains;
+The annotation *"policy-admission.acp.homeoffice.gov.uk/ingress"* applied to the namespace is used to control which domains the namespace is permitted to request. The value is a comma separated list of domains;
 
 ```shell
 $ kubectl annotate namespace \

@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package domains
+package ingress
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
@@ -42,13 +42,13 @@ type authorizer struct {
 func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
 	var errs field.ErrorList
 
-	ingress, ok := object.(*extensions.Ingress)
+	ing, ok := object.(*extensions.Ingress)
 	if !ok {
 		return append(errs, field.InternalError(field.NewPath("object").Child(reflect.TypeOf(object).String()),
 			errors.New("invalid object, expected ingress")))
 	}
 	// @step: get namespace for this object
-	namespace, err := utils.GetCachedNamespace(client, mcache, ingress.Namespace)
+	namespace, err := utils.GetCachedNamespace(client, mcache, ing.Namespace)
 	if err != nil {
 		return append(errs, field.InternalError(field.NewPath("namespace"), err))
 	}
@@ -65,10 +65,36 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 	}
 	whitelist := strings.Split(annotation, ",")
 
-	for index, rule := range ingress.Spec.Rules {
+	// @check the host rules
+	errs = append(errs, validateIngressRules(ing, whitelist)...)
+
+	// @check the ingress is using TLS between ingress and pods
+	if c.config.EnforceTLS {
+		secure, found := namespace.GetAnnotations()[c.config.TLSAnnontation]
+		fld := field.NewPath("annotation").Key(c.config.TLSAnnontation)
+		if !found {
+			return append(errs, field.Forbidden(fld, "secure backend TLS annotation not found"))
+		}
+		isTrue, err := strconv.ParseBool(secure)
+		if err != nil {
+			return append(errs, field.Invalid(fld, secure, "must be a boolean value"))
+		}
+		if !isTrue {
+			errs = append(errs, field.Forbidden(fld, "secure backend must be enabled"))
+		}
+	}
+
+	return errs
+}
+
+// validateIngressRules checks the ingress rules are within the whitelist
+func validateIngressRules(ing *extensions.Ingress, whitelist []string) field.ErrorList {
+	var errs field.ErrorList
+
+	for i, rule := range ing.Spec.Rules {
 		if found := hasDomain(rule.Host, whitelist); !found {
-			name := fmt.Sprintf("rule.Host[%d]", index)
-			errs = append(errs, field.Forbidden(field.NewPath(name), fmt.Sprintf("host %s is not permitted by namespace policy", rule.Host)))
+			path := field.NewPath("spec").Child("Rules").Index(i).Child("Host")
+			errs = append(errs, field.Invalid(path, rule.Host, "host is not permitted by namespace policy"))
 		}
 	}
 

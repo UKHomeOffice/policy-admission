@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package domains
+package ingress
 
 import (
 	"testing"
@@ -82,10 +82,10 @@ func TestDomainsAuthorizer(t *testing.T) {
 			Whitelist: "*.domain.com",
 			Errors: field.ErrorList{
 				{
-					Field:    "rule.Host[0]",
-					BadValue: "",
-					Type:     field.ErrorTypeForbidden,
-					Detail:   "host bad.test.domain.com is not permitted by namespace policy",
+					Field:    "spec.Rules[0].Host",
+					BadValue: "bad.test.domain.com",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "host is not permitted by namespace policy",
 				},
 			},
 		},
@@ -94,10 +94,10 @@ func TestDomainsAuthorizer(t *testing.T) {
 			Whitelist: "*",
 			Errors: field.ErrorList{
 				{
-					Field:    "rule.Host[0]",
-					BadValue: "",
-					Type:     field.ErrorTypeForbidden,
-					Detail:   "host bad.test.domain.com is not permitted by namespace policy",
+					Field:    "spec.Rules[0].Host",
+					BadValue: "bad.test.domain.com",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "host is not permitted by namespace policy",
 				},
 			},
 		},

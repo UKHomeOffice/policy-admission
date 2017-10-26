@@ -19,6 +19,7 @@ package images
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -49,7 +50,8 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 
 	pod, ok := object.(*core.Pod)
 	if !ok {
-		return append(errs, field.InternalError(field.NewPath("object"), errors.New("invalid object, expected Pod")))
+		return append(errs, field.InternalError(field.NewPath("object").Child(reflect.TypeOf(object).String()),
+			errors.New("invalid object, expected Pod")))
 	}
 
 	apply = append(apply, c.policies...)

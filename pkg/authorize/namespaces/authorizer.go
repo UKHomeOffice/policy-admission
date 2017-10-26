@@ -19,6 +19,7 @@ package namespaces
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
@@ -43,7 +44,8 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 
 	namespace, ok := object.(*core.Namespace)
 	if !ok {
-		return append(errs, field.InternalError(field.NewPath("object"), errors.New("invalid object, expected namespace")))
+		return append(errs, field.InternalError(field.NewPath("object").Child(reflect.TypeOf(object).String()),
+			errors.New("invalid object, expected namespace")))
 	}
 
 	return append(errs, c.validateAttributes(namespace)...)
