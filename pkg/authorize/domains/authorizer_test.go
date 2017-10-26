@@ -26,11 +26,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
-	core "k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/apis/extensions"
 )
 
 type domainsCheck struct {
@@ -149,8 +148,8 @@ func newTestIngress(hostname string) *extensions.Ingress {
 			Rules: []extensions.IngressRule{{Host: hostname}},
 		},
 		Status: extensions.IngressStatus{
-			LoadBalancer: core.LoadBalancerStatus{
-				Ingress: []core.LoadBalancerIngress{{IP: "", Hostname: ""}},
+			LoadBalancer: v1.LoadBalancerStatus{
+				Ingress: []v1.LoadBalancerIngress{{IP: "", Hostname: ""}},
 			},
 		},
 	}

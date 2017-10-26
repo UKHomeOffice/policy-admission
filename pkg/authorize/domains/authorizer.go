@@ -19,16 +19,17 @@ package domains
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
 	"github.com/patrickmn/go-cache"
+	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/pkg/apis/extensions"
 )
 
 // authorizer is used to wrap the interaction with the psp runtime
@@ -43,7 +44,8 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 
 	ingress, ok := object.(*extensions.Ingress)
 	if !ok {
-		return append(errs, field.InternalError(field.NewPath("object"), errors.New("invalid object, expected ingress")))
+		return append(errs, field.InternalError(field.NewPath("object").Child(reflect.TypeOf(object).String()),
+			errors.New("invalid object, expected ingress")))
 	}
 	// @step: get namespace for this object
 	namespace, err := utils.GetCachedNamespace(client, mcache, ingress.Namespace)
