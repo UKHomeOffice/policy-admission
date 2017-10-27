@@ -92,7 +92,8 @@ func (c *authorizer) validateImage(fld *field.Path, container []core.Container) 
 		c.lcache.Add(container.Image, allowed, expiration)
 
 		if !allowed {
-			errs = append(errs, field.Invalid(fld.Index(i).Child("image"), container.Image, "denied by imagelist policy"))
+			errs = append(errs, field.Invalid(fld.Index(i).Child("image"), container.Image,
+				fmt.Sprintf("%s: denied by imagelist policy", container.Image)))
 		}
 	}
 

@@ -104,7 +104,8 @@ func (c *authorizer) validatePod(provider podsecuritypolicy.Provider, pod *core.
 // validateContainers is responisble for iterating the containers and validating against the policy
 func (c *authorizer) validateContainers(provider podsecuritypolicy.Provider, pod *core.Pod, containers []core.Container) field.ErrorList {
 	for i, _ := range containers {
-		assignSecurityContext(&containers[i])
+		// set some same defaults
+		containers[i].SecurityContext = assignSecurityContext(&containers[i])
 
 		sc, _, err := provider.CreateContainerSecurityContext(pod, &containers[i])
 		if err != nil {
@@ -122,12 +123,11 @@ func (c *authorizer) validateContainers(provider podsecuritypolicy.Provider, pod
 }
 
 // assignSecurityContext is responsible for assigning some defaults
-func assignSecurityContext(container *core.Container) {
+func assignSecurityContext(container *core.Container) *core.SecurityContext {
+	isFalse := false
 	if container.SecurityContext == nil {
 		container.SecurityContext = &core.SecurityContext{}
 	}
-
-	isFalse := false
 	if container.SecurityContext.RunAsNonRoot == nil {
 		container.SecurityContext.RunAsNonRoot = &isFalse
 	}
@@ -137,6 +137,11 @@ func assignSecurityContext(container *core.Container) {
 	if container.SecurityContext.ReadOnlyRootFilesystem == nil {
 		container.SecurityContext.ReadOnlyRootFilesystem = &isFalse
 	}
+	if container.SecurityContext.Privileged == nil {
+		container.SecurityContext.Privileged = &isFalse
+	}
+
+	return container.SecurityContext
 }
 
 // FilterOn returns the authorizer handle

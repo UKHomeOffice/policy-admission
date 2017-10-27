@@ -93,7 +93,7 @@ func (c *authorizer) validateImagePolicy(policies []*regexp.Regexp, containers [
 			}
 		}
 		if !admit {
-			errs = append(errs, field.Forbidden(field.NewPath(x.Image), "image denied by policy"))
+			errs = append(errs, field.Forbidden(field.NewPath(x.Image), fmt.Sprintf("image: %s denied by policy", x.Image)))
 		}
 	}
 
