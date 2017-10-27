@@ -104,8 +104,8 @@ func (c *authorizer) validatePod(provider podsecuritypolicy.Provider, pod *core.
 // validateContainers is responisble for iterating the containers and validating against the policy
 func (c *authorizer) validateContainers(provider podsecuritypolicy.Provider, pod *core.Pod, containers []core.Container) field.ErrorList {
 	for i, _ := range containers {
-		// set some same defaults
-		containers[i].SecurityContext = assignSecurityContext(&containers[i])
+		// set some same defaults or take the pods default
+		containers[i].SecurityContext = assignSecurityContext(pod, &containers[i])
 
 		sc, _, err := provider.CreateContainerSecurityContext(pod, &containers[i])
 		if err != nil {
@@ -123,13 +123,20 @@ func (c *authorizer) validateContainers(provider podsecuritypolicy.Provider, pod
 }
 
 // assignSecurityContext is responsible for assigning some defaults
-func assignSecurityContext(container *core.Container) *core.SecurityContext {
+func assignSecurityContext(pod *core.Pod, container *core.Container) *core.SecurityContext {
 	isFalse := false
 	if container.SecurityContext == nil {
 		container.SecurityContext = &core.SecurityContext{}
 	}
 	if container.SecurityContext.RunAsNonRoot == nil {
-		container.SecurityContext.RunAsNonRoot = &isFalse
+		if pod.Spec.SecurityContext != nil && pod.Spec.SecurityContext.RunAsNonRoot != nil {
+			container.SecurityContext.RunAsNonRoot = pod.Spec.SecurityContext.RunAsNonRoot
+		} else {
+			container.SecurityContext.RunAsNonRoot = &isFalse
+		}
+	}
+	if container.SecurityContext.RunAsUser == nil && pod.Spec.SecurityContext.RunAsUser != nil {
+		container.SecurityContext.RunAsUser = pod.Spec.SecurityContext.RunAsUser
 	}
 	if container.SecurityContext.AllowPrivilegeEscalation == nil {
 		container.SecurityContext.AllowPrivilegeEscalation = &isFalse
