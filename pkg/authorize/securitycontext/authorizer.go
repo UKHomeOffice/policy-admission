@@ -83,9 +83,9 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 	}
 
 	// @check if the init container are valid agains the policy
-	errs = append(errs, c.validateContainers(provider, pod, &pod.Spec.InitContainers)...)
+	errs = append(errs, c.validateContainers(provider, pod, pod.Spec.InitContainers)...)
 	// @check the main containers to not invalidate the psp
-	errs = append(errs, c.validateContainers(provider, pod, &pod.Spec.Containers)...)
+	errs = append(errs, c.validateContainers(provider, pod, pod.Spec.Containers)...)
 
 	return errs
 }
@@ -102,20 +102,17 @@ func (c *authorizer) validatePod(provider podsecuritypolicy.Provider, pod *core.
 }
 
 // validateContainers is responisble for iterating the containers and validating against the policy
-func (c *authorizer) validateContainers(provider podsecuritypolicy.Provider, pod *core.Pod, containers *[]core.Container) field.ErrorList {
-	for i, _ := range *containers {
-		// @step: add some defaults
-		(*containers)[i].SecurityContext = assignSecurityContext((*containers)[i].SecurityContext)
-		//(*containers)[i].SecurityContext = sc.InternalDetermineEffectiveSecurityContext(pod, &(*containers)[i])
+func (c *authorizer) validateContainers(provider podsecuritypolicy.Provider, pod *core.Pod, containers []core.Container) field.ErrorList {
+	for i, _ := range containers {
+		assignSecurityContext(&containers[i])
 
-		sc, _, err := provider.CreateContainerSecurityContext(pod, &(*containers)[i])
+		sc, _, err := provider.CreateContainerSecurityContext(pod, &containers[i])
 		if err != nil {
 			return field.ErrorList{{Type: field.ErrorTypeInternal, Detail: err.Error()}}
 		}
+		containers[i].SecurityContext = sc
 
-		(*containers)[i].SecurityContext = sc
-
-		violations := provider.ValidateContainerSecurityContext(pod, &(*containers)[i], field.NewPath("spec", "securityContext"))
+		violations := provider.ValidateContainerSecurityContext(pod, &containers[i], field.NewPath("spec", "securityContext"))
 		if len(violations) > 0 {
 			return violations
 		}
@@ -125,19 +122,21 @@ func (c *authorizer) validateContainers(provider podsecuritypolicy.Provider, pod
 }
 
 // assignSecurityContext is responsible for assigning some defaults
-func assignSecurityContext(context *core.SecurityContext) *core.SecurityContext {
-	isFalse := false
-	if context.RunAsNonRoot == nil {
-		context.RunAsNonRoot = &isFalse
-	}
-	if context.AllowPrivilegeEscalation == nil {
-		context.AllowPrivilegeEscalation = &isFalse
-	}
-	if context.ReadOnlyRootFilesystem == nil {
-		context.ReadOnlyRootFilesystem = &isFalse
+func assignSecurityContext(container *core.Container) {
+	if container.SecurityContext == nil {
+		container.SecurityContext = &core.SecurityContext{}
 	}
 
-	return context
+	isFalse := false
+	if container.SecurityContext.RunAsNonRoot == nil {
+		container.SecurityContext.RunAsNonRoot = &isFalse
+	}
+	if container.SecurityContext.AllowPrivilegeEscalation == nil {
+		container.SecurityContext.AllowPrivilegeEscalation = &isFalse
+	}
+	if container.SecurityContext.ReadOnlyRootFilesystem == nil {
+		container.SecurityContext.ReadOnlyRootFilesystem = &isFalse
+	}
 }
 
 // FilterOn returns the authorizer handle
