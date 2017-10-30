@@ -129,14 +129,7 @@ func assignSecurityContext(pod *core.Pod, container *core.Container) *core.Secur
 		container.SecurityContext = &core.SecurityContext{}
 	}
 	if container.SecurityContext.RunAsNonRoot == nil {
-		if pod.Spec.SecurityContext != nil && pod.Spec.SecurityContext.RunAsNonRoot != nil {
-			container.SecurityContext.RunAsNonRoot = pod.Spec.SecurityContext.RunAsNonRoot
-		} else {
-			container.SecurityContext.RunAsNonRoot = &isFalse
-		}
-	}
-	if container.SecurityContext.RunAsUser == nil && pod.Spec.SecurityContext.RunAsUser != nil {
-		container.SecurityContext.RunAsUser = pod.Spec.SecurityContext.RunAsUser
+		container.SecurityContext.RunAsNonRoot = &isFalse
 	}
 	if container.SecurityContext.AllowPrivilegeEscalation == nil {
 		container.SecurityContext.AllowPrivilegeEscalation = &isFalse
