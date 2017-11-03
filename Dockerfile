@@ -5,4 +5,7 @@ RUN apk add ca-certificates --update
 
 ADD bin/policy-admission /policy-admission
 
+RUN adduser -D controller
+USER controller
+
 ENTRYPOINT [ "/policy-admission" ]
