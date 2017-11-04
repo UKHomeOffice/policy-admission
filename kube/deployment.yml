@@ -17,9 +17,13 @@ spec:
         owner: "devops@digital.homeoffice.gov.uk"
     spec:
       serviceAccount: policy-admission
+      securityContext:
+        fsGroup: 1000
       containers:
       - name: certs
         image: quay.io/ukhomeofficedigital/cfssl-sidekick:v0.0.1
+        securityContext:
+          runAsNonRoot: true
         resources:
           limits:
             cpu: 100m
@@ -42,6 +46,8 @@ spec:
       - name: controller
         image: quay.io/ukhomeofficedigital/policy-admission:v0.0.3
         imagePullPolicy: Always
+        securityContext:
+          runAsNonRoot: true
         resources:
           limits:
             cpu: 200m
