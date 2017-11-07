@@ -32,6 +32,8 @@ var (
 	FilterNamespace = "Namespace"
 	// FilterPods indicates you want to see pods
 	FilterPods = "Pod"
+	// FilterServices indicates we are looking at services
+	FilterServices = "Service"
 )
 
 // Authorize is the interface for a authorizer
