@@ -20,12 +20,12 @@ import (
 	"errors"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
-	"github.com/UKHomeOffice/policy-admission/pkg/authorize/denyloadbalancers"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/domains"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/imagelist"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/images"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/namespaces"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/securitycontext"
+	"github.com/UKHomeOffice/policy-admission/pkg/authorize/services"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/tolerations"
 )
 
@@ -41,8 +41,6 @@ func New(name, path string, reloadable bool) (api.Authorize, error) {
 // newAuthorizer creates a new authorizer by name
 func newAuthorizer(name, path string) (api.Authorize, error) {
 	switch name {
-	case denyloadbalancers.Name:
-		return denyloadbalancers.NewFromFile(path)
 	case domains.Name:
 		return domains.NewFromFile(path)
 	case images.Name:
@@ -53,6 +51,8 @@ func newAuthorizer(name, path string) (api.Authorize, error) {
 		return namespaces.NewFromFile(path)
 	case securitycontext.Name:
 		return securitycontext.NewFromFile(path)
+	case services.Name:
+		return services.NewFromFile(path)
 	case tolerations.Name:
 		return tolerations.NewFromFile(path)
 	default:
