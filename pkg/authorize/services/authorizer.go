@@ -14,11 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package denyloadbalancers
+package services
 
 import (
 	"errors"
 	"reflect"
+	"strings"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
@@ -45,11 +46,37 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 			errors.New("invalid object, expected service")))
 	}
 
-	if svc.Spec.Type == core.ServiceTypeLoadBalancer {
-		return append(errs, field.Invalid(field.NewPath("service"), svc.Spec.Type, "loadbalancer services are denied by policy"))
+	var whitelist []string
+	whitelist = append(whitelist, c.config.Whitelist...)
+
+	// @step: get namespace for this object
+	namespace, err := utils.GetCachedNamespace(client, mcache, svc.Namespace)
+	if err != nil {
+		return append(errs, field.InternalError(field.NewPath("namespace"), err))
+	}
+
+	// @check if the namespace has a whitelist
+	annotation, found := namespace.GetAnnotations()[Annotation]
+	if found {
+		whitelist = append(whitelist, strings.Split(strings.TrimSpace(annotation), ",")...)
+	}
+
+	if permitted := c.validateService(svc, whitelist); !permitted {
+		errs = append(errs, field.Invalid(field.NewPath("service").Child("type"), svc.Spec.Type, "service type denied by cluster policy"))
 	}
 
 	return errs
+}
+
+// validateService checks the service type is permitted by the whitelist
+func (c *authorizer) validateService(service *core.Service, whitelist []string) bool {
+	for _, x := range whitelist {
+		if service.Spec.Type == core.ServiceType(x) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Name returns the name of the provider

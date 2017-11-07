@@ -14,22 +14,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package denyloadbalancers
+package services
+
+import (
+	core "k8s.io/kubernetes/pkg/api"
+)
 
 const (
 	// Name is the name of the authorizer
-	Name = "denyloadbalancers"
+	Name = "services"
+	// Annotation is the namespace annotation used to control services whitelist
+	Annotation = "policy-admission.acp.homeoffice.gov.uk/" + Name
 )
 
-// Config is the configuration for the authorizer
+// Config is the configuration for the taint authorizer
 type Config struct {
 	// IgnoreNamespaces is list of namespace to
 	IgnoreNamespaces []string `yaml:"ignored-namespaces" json:"ignored-namespaces"`
+	// Whitelist is default whitelist applied to all namespaces
+	Whitelist []string `yaml:"whitelist" json:"whitelist"`
 }
 
 // NewDefaultConfig is the default configuration
 func NewDefaultConfig() *Config {
 	return &Config{
-		IgnoreNamespaces: []string{"kube-system", "kube-public"},
+		IgnoreNamespaces: []string{"kube-system", "kube-admission"},
+		Whitelist:        []string{string(core.ServiceTypeNodePort), string(core.ServiceTypeClusterIP)},
 	}
 }
