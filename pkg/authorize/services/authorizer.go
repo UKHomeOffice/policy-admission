@@ -62,7 +62,7 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 	}
 
 	if permitted := c.validateService(svc, whitelist); !permitted {
-		errs = append(errs, field.Invalid(field.NewPath("service").Child("type"), svc.Spec.Type, "service type denied by cluster policy"))
+		errs = append(errs, field.Invalid(field.NewPath("spec", "type"), svc.Spec.Type, "service type denied by cluster policy"))
 	}
 
 	return errs

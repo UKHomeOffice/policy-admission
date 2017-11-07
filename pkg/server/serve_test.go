@@ -71,7 +71,7 @@ func TestAdmitHandlerChecks(t *testing.T) {
 			ExpectedStatus: &admission.AdmissionReviewStatus{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
-					Message: "Host network is not allowed to be used",
+					Message: "spec.securityContext.hostNetwork=true : Host network is not allowed to be used",
 					Reason:  metav1.StatusReasonForbidden,
 					Status:  metav1.StatusFailure,
 				},
@@ -94,7 +94,7 @@ func TestAdmitHandlerChecks(t *testing.T) {
 			ExpectedStatus: &admission.AdmissionReviewStatus{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
-					Message: "unable to retrieve namespace: namespaces \"not-there\" not found",
+					Message: `not-there=<nil> : namespaces "not-there" not found`,
 					Reason:  metav1.StatusReasonForbidden,
 					Status:  metav1.StatusFailure,
 				},
@@ -117,7 +117,7 @@ func TestAdmitHandlerChecks(t *testing.T) {
 			ExpectedStatus: &admission.AdmissionReviewStatus{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
-					Message: "hostPath volumes are not allowed to be used",
+					Message: "spec.volumes[0]=hostPath : hostPath volumes are not allowed to be used",
 					Reason:  metav1.StatusReasonForbidden,
 					Status:  metav1.StatusFailure,
 				},
@@ -137,7 +137,7 @@ func TestAdmitHandlerChecks(t *testing.T) {
 			ExpectedStatus: &admission.AdmissionReviewStatus{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
-					Message: "Privileged containers are not allowed",
+					Message: "spec.containers[0].securityContext.privileged=true : Privileged containers are not allowed",
 					Reason:  metav1.StatusReasonForbidden,
 					Status:  metav1.StatusFailure,
 				},
@@ -170,7 +170,7 @@ func TestAdmitHandlerChecks(t *testing.T) {
 			ExpectedStatus: &admission.AdmissionReviewStatus{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
-					Message: "RunAsNonRoot must be true for container test",
+					Message: "securityContext.runAsNonRoot=false : RunAsNonRoot must be true for container test",
 					Reason:  metav1.StatusReasonForbidden,
 					Status:  metav1.StatusFailure,
 				},
@@ -210,7 +210,7 @@ func TestAdmitHandlerWithOutNamespaceAnnotation(t *testing.T) {
 			ExpectedStatus: &admission.AdmissionReviewStatus{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
-					Message: "Host network is not allowed to be used",
+					Message: "spec.securityContext.hostNetwork=true : Host network is not allowed to be used",
 					Reason:  metav1.StatusReasonForbidden,
 					Status:  metav1.StatusFailure,
 				},

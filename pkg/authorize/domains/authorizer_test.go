@@ -54,9 +54,9 @@ func TestDomainsAuthorizer(t *testing.T) {
 			Hostname: "test.domain.com",
 			Errors: field.ErrorList{
 				{
-					Field:    "whitelist",
+					Field:    "namespace.annotations[policy-admission.acp.homeoffice.gov.uk/domains]",
 					BadValue: "",
-					Type:     field.ErrorTypeForbidden,
+					Type:     field.ErrorTypeInvalid,
 					Detail:   "no whitelist annotation",
 				},
 			},
@@ -82,10 +82,10 @@ func TestDomainsAuthorizer(t *testing.T) {
 			Whitelist: "*.domain.com",
 			Errors: field.ErrorList{
 				{
-					Field:    "rule.Host[0]",
-					BadValue: "",
-					Type:     field.ErrorTypeForbidden,
-					Detail:   "host bad.test.domain.com is not permitted by namespace policy",
+					Field:    "spec.rules[0].host",
+					BadValue: "bad.test.domain.com",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "host is not permitted by namespace policy",
 				},
 			},
 		},
@@ -94,10 +94,10 @@ func TestDomainsAuthorizer(t *testing.T) {
 			Whitelist: "*",
 			Errors: field.ErrorList{
 				{
-					Field:    "rule.Host[0]",
-					BadValue: "",
-					Type:     field.ErrorTypeForbidden,
-					Detail:   "host bad.test.domain.com is not permitted by namespace policy",
+					Field:    "spec.rules[0].host",
+					BadValue: "bad.test.domain.com",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "host is not permitted by namespace policy",
 				},
 			},
 		},

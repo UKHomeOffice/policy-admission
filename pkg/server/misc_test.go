@@ -43,7 +43,7 @@ func TestDenialEventCreated(t *testing.T) {
 			ExpectedStatus: &admission.AdmissionReviewStatus{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
-					Message: "Host network is not allowed to be used",
+					Message: "spec.securityContext.hostNetwork=true : Host network is not allowed to be used",
 					Reason:  metav1.StatusReasonForbidden,
 					Status:  metav1.StatusFailure,
 				},

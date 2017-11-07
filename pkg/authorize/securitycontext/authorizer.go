@@ -63,7 +63,7 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 	// @step: get namespace for this object
 	namespace, err := utils.GetCachedNamespace(client, mcache, pod.Namespace)
 	if err != nil {
-		return append(errs, field.InternalError(field.NewPath("namespace"), err))
+		return append(errs, field.InternalError(field.NewPath(pod.Namespace), err))
 	}
 
 	// @check if the nanespace if annontated
@@ -83,9 +83,9 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 	}
 
 	// @check if the init container are valid agains the policy
-	errs = append(errs, c.validateContainers(provider, pod, pod.Spec.InitContainers)...)
+	errs = append(errs, c.validateContainers(field.NewPath("spec", "initContainers"), provider, pod, pod.Spec.InitContainers)...)
 	// @check the main containers to not invalidate the psp
-	errs = append(errs, c.validateContainers(provider, pod, pod.Spec.Containers)...)
+	errs = append(errs, c.validateContainers(field.NewPath("spec", "containers"), provider, pod, pod.Spec.Containers)...)
 
 	return errs
 }
@@ -102,7 +102,7 @@ func (c *authorizer) validatePod(provider podsecuritypolicy.Provider, pod *core.
 }
 
 // validateContainers is responisble for iterating the containers and validating against the policy
-func (c *authorizer) validateContainers(provider podsecuritypolicy.Provider, pod *core.Pod, containers []core.Container) field.ErrorList {
+func (c *authorizer) validateContainers(path *field.Path, provider podsecuritypolicy.Provider, pod *core.Pod, containers []core.Container) field.ErrorList {
 	for i, _ := range containers {
 		// set some same defaults or take the pods default
 		containers[i].SecurityContext = assignSecurityContext(pod, &containers[i])
@@ -113,7 +113,7 @@ func (c *authorizer) validateContainers(provider podsecuritypolicy.Provider, pod
 		}
 		containers[i].SecurityContext = sc
 
-		violations := provider.ValidateContainerSecurityContext(pod, &containers[i], field.NewPath("spec", "securityContext"))
+		violations := provider.ValidateContainerSecurityContext(pod, &containers[i], path.Index(i).Child("securityContext"))
 		if len(violations) > 0 {
 			return violations
 		}

@@ -66,7 +66,7 @@ func TestAuthorizer(t *testing.T) {
 			},
 			Errors: field.ErrorList{
 				{
-					Field:    "service.type",
+					Field:    "spec.type",
 					BadValue: core.ServiceTypeLoadBalancer,
 					Type:     field.ErrorTypeInvalid,
 					Detail:   "service type denied by cluster policy",

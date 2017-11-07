@@ -18,7 +18,6 @@ package domains
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"strings"
 
@@ -56,19 +55,19 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 	// @check the annotation exists on the namespace
 	annotation, found := namespace.GetAnnotations()[Annotation]
 	if !found {
-		return append(errs, field.Forbidden(field.NewPath("whitelist"), "no whitelist annotation"))
+		return append(errs, field.Invalid(field.NewPath("namespace", "annotations").Key(Annotation), "", "no whitelist annotation"))
 	}
 
 	// @check the whitelist is not empty
 	if annotation == "" {
-		return append(errs, field.Forbidden(field.NewPath("whitelist"), "whitelist is empty"))
+		return append(errs, field.Invalid(field.NewPath("namespace", "annotations").Key(Annotation), "", "whitelist is empty"))
 	}
 	whitelist := strings.Split(annotation, ",")
 
 	for index, rule := range ingress.Spec.Rules {
 		if found := hasDomain(rule.Host, whitelist); !found {
-			name := fmt.Sprintf("rule.Host[%d]", index)
-			errs = append(errs, field.Forbidden(field.NewPath(name), fmt.Sprintf("host %s is not permitted by namespace policy", rule.Host)))
+			path := field.NewPath("spec", "rules").Index(index).Child("host")
+			errs = append(errs, field.Invalid(path, rule.Host, "host is not permitted by namespace policy"))
 		}
 	}
 

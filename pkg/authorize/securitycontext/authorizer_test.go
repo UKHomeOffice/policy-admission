@@ -226,7 +226,7 @@ func TestPodPrivilegedChecks(t *testing.T) {
 				{
 					BadValue: true,
 					Detail:   "Privileged containers are not allowed",
-					Field:    "spec.securityContext.privileged",
+					Field:    "spec.containers[0].securityContext.privileged",
 					Type:     field.ErrorTypeInvalid,
 				},
 			},
