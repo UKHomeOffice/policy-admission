@@ -20,6 +20,7 @@ import (
 	"errors"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
+	"github.com/UKHomeOffice/policy-admission/pkg/authorize/denyloadbalancers"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/domains"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/imagelist"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/images"
@@ -40,6 +41,8 @@ func New(name, path string, reloadable bool) (api.Authorize, error) {
 // newAuthorizer creates a new authorizer by name
 func newAuthorizer(name, path string) (api.Authorize, error) {
 	switch name {
+	case denyloadbalancers.Name:
+		return denyloadbalancers.NewFromFile(path)
 	case domains.Name:
 		return domains.NewFromFile(path)
 	case images.Name:

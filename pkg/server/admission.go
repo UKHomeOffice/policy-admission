@@ -154,6 +154,8 @@ func (c *Admission) getResourceForReview(kind string, review *admission.Admissio
 	var object metav1.Object
 
 	switch kind {
+	case api.FilterServices:
+		object = &core.Service{}
 	case api.FilterPods:
 		object = &core.Pod{}
 	case api.FilterIngresses:
