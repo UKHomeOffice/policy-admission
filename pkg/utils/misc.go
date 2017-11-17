@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/patrickmn/go-cache"
@@ -115,10 +116,10 @@ func GetCachedResource(client kubernetes.Interface, ca *cache.Cache, key string,
 	}
 }
 
-// Contained checks if the string exists
+// Contained checks if the string exist supports regexs
 func Contained(name string, whitelist []string) bool {
 	for _, x := range whitelist {
-		if x == name {
+		if m, _ := regexp.MatchString(x, name); m {
 			return true
 		}
 	}

@@ -75,6 +75,8 @@ func TestContained(t *testing.T) {
 		{List: []string{"a", "b", "c"}},
 		{List: []string{"a", "b", "c"}, Name: "a", Found: true},
 		{List: []string{"a", "b", "c"}, Name: "b", Found: true},
+		{List: []string{"fo*", "bar", "jar"}, Name: "foo", Found: true},
+		{List: []string{"ca*", "dog", "rat"}, Name: "horse", Found: false},
 	}
 	for i, c := range cs {
 		assert.Equal(t, c.Found, Contained(c.Name, c.List), "case %d, expected: %t, got: %t", i, c.Found, !c.Found)
