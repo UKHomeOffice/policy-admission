@@ -68,7 +68,7 @@ func GetCachedNamespace(client kubernetes.Interface, mcache *cache.Cache, name s
 		func(client kubernetes.Interface, keyname string) (interface{}, error) {
 			resource, err := client.CoreV1().Namespaces().Get(name, metav1.GetOptions{})
 			if err != nil {
-				return nil, fmt.Errorf("unable to retrieve namespace: %s", err)
+				return nil, err
 			}
 
 			return resource, nil

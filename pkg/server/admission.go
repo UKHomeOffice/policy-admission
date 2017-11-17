@@ -138,7 +138,7 @@ func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (bo
 		if errs := provider.Admit(c.client, c.resourceCache, object); len(errs) > 0 {
 			var reasons []string
 			for _, x := range errs {
-				reasons = append(reasons, fmt.Sprintf("%s", x.Detail))
+				reasons = append(reasons, fmt.Sprintf("%s=%v : %s", x.Field, x.BadValue, x.Detail))
 			}
 			status.Detail = strings.Join(reasons, ",")
 

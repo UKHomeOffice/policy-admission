@@ -84,7 +84,7 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 // validateImagePolicy checks the the image complys with policy
 func (c *authorizer) validateImagePolicy(policies []*regexp.Regexp, containers []core.Container) field.ErrorList {
 	var errs field.ErrorList
-	for _, x := range containers {
+	for i, x := range containers {
 		var admit bool
 		for _, matcher := range policies {
 			if matched := matcher.MatchString(x.Image); matched {
@@ -93,7 +93,8 @@ func (c *authorizer) validateImagePolicy(policies []*regexp.Regexp, containers [
 			}
 		}
 		if !admit {
-			errs = append(errs, field.Forbidden(field.NewPath(x.Image), fmt.Sprintf("image: %s denied by policy", x.Image)))
+			path := field.NewPath("spec", "containers").Index(i).Child("image")
+			errs = append(errs, field.Invalid(path, x.Image, fmt.Sprintf("image: %s denied by policy", x.Image)))
 		}
 	}
 

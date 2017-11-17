@@ -49,9 +49,9 @@ func TestAuthorizer(t *testing.T) {
 			Image:     "testimage:latest",
 			Errors: field.ErrorList{
 				{
-					Field:    "testimage:latest",
-					BadValue: "",
-					Type:     field.ErrorTypeForbidden,
+					Field:    "spec.containers[0].image",
+					BadValue: "testimage:latest",
+					Type:     field.ErrorTypeInvalid,
 					Detail:   "image: testimage:latest denied by policy",
 				},
 			},
@@ -64,7 +64,7 @@ func TestAuthorizer(t *testing.T) {
 			Whitelist: "another_image, testimage:latest",
 			Image:     "testimage:latest",
 		},
-		"check for more complex regexes are oke": {
+		"check for more complex regexes are ok": {
 			Whitelist: "^docker.io/.*$, ^.*:lates[tT]$",
 			Image:     "testimage:latest",
 		},
@@ -83,9 +83,9 @@ func TestDefaultPolicy(t *testing.T) {
 			Image: "should_not_work",
 			Errors: field.ErrorList{
 				{
-					Field:    "should_not_work",
-					BadValue: "",
-					Type:     field.ErrorTypeForbidden,
+					Field:    "spec.containers[0].image",
+					BadValue: "should_not_work",
+					Type:     field.ErrorTypeInvalid,
 					Detail:   "image: should_not_work denied by policy",
 				},
 			},

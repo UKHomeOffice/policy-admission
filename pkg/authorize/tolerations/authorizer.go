@@ -74,7 +74,9 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 	// @step: check the toleration is permitted via the whitelist
 	for i, toleration := range pod.Spec.Tolerations {
 		if matched := isWhiteListed(toleration, whitelist); !matched {
-			errs = append(errs, field.Forbidden(field.NewPath("whitelist"), fmt.Sprintf("pod.tolerations[%d] denied by whitelist", i)))
+			errs = append(errs, field.Invalid(field.NewPath("spec", "tolerations").Index(i),
+				fmt.Sprintf("%s=%s:%s", toleration.Key, toleration.Value, toleration.Effect),
+				"toleration denied by whitelist"))
 		}
 	}
 

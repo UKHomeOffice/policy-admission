@@ -76,10 +76,10 @@ func TestTolerationAuthorizer(t *testing.T) {
 			},
 			Errors: field.ErrorList{
 				{
-					Field:    "whitelist",
-					BadValue: "",
-					Type:     field.ErrorTypeForbidden,
-					Detail:   "pod.tolerations[0] denied by whitelist",
+					Field:    "spec.tolerations[0]",
+					BadValue: "dedicated=not_permitted:NoSchedule",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "toleration denied by whitelist",
 				},
 			},
 		},
@@ -175,10 +175,10 @@ func TestDefaultWhitelist(t *testing.T) {
 			},
 			Errors: field.ErrorList{
 				{
-					Field:    "whitelist",
-					BadValue: "",
-					Type:     field.ErrorTypeForbidden,
-					Detail:   "pod.tolerations[0] denied by whitelist",
+					Field:    "spec.tolerations[0]",
+					BadValue: "dedicated=ingress:NoSchedule",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "toleration denied by whitelist",
 				},
 			},
 		},
