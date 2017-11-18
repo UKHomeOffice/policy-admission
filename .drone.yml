@@ -5,9 +5,10 @@ workspace:
 pipeline:
   tests:
     image: docker:1.13
+    environment:
       - DOCKER_HOST=tcp://172.17.0.1:2375
     commands:
-      - docker run -ti --name=test docker.io/fedora:26 bash
+      - docker run --name=test -ti -d fedora bash
 
   latest:
     image: docker:1.13
