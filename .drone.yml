@@ -7,7 +7,7 @@ pipeline:
     image: docker:1.13
       - DOCKER_HOST=tcp://172.17.0.1:2375
     commands:
-      - docker run -d -ti --name=test fedora:26 bash
+      - docker run -ti --name=test docker.io/fedora:26 bash
 
   latest:
     image: docker:1.13
