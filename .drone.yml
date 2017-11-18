@@ -4,10 +4,10 @@ workspace:
 
 pipeline:
   tests:
-    image: golang:1.9
+    image: docker:1.13
+      - DOCKER_HOST=tcp://172.17.0.1:2375
     commands:
-      - make test
-      - make static
+      - docker run --name=test -ti -d fedora:26 bash
 
   latest:
     image: docker:1.13
