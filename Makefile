@@ -105,6 +105,7 @@ test: deps
     make glide-install; \
   fi
 	@go test -v ${PACKAGES}
+	docker run fedora whoami
 	@$(MAKE) vet
 	@$(MAKE) cover
 
