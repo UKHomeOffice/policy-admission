@@ -23,6 +23,7 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/domains"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/imagelist"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/images"
+	"github.com/UKHomeOffice/policy-admission/pkg/authorize/kubecertmanager"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/namespaces"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/securitycontext"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/services"
@@ -47,6 +48,8 @@ func newAuthorizer(name, path string) (api.Authorize, error) {
 		return images.NewFromFile(path)
 	case imagelist.Name:
 		return imagelist.NewFromFile(path)
+	case kubecertmanager.Name:
+		return kubecertmanager.NewFromFile(path)
 	case namespaces.Name:
 		return namespaces.NewFromFile(path)
 	case securitycontext.Name:

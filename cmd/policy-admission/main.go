@@ -33,7 +33,7 @@ import (
 
 var (
 	// Version is the version of the service
-	Version = "v0.0.7"
+	Version = "v0.0.8"
 	// GitSHA is the git sha this was built off
 	GitSHA = "unknown"
 )
