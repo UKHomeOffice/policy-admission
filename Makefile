@@ -5,6 +5,7 @@ REGISTRY=quay.io
 ROOT_DIR=${PWD}
 HARDWARE=$(shell uname -m)
 GIT_SHA=$(shell git --no-pager describe --always --dirty)
+GOVERSION=1.9.3
 BUILD_TIME=$(shell date -u '+%Y-%m-%d_%I:%M:%S%p')
 VERSION ?= $(shell awk '/Version.*=/ { print $$3 }' cmd/policy-admission/main.go | sed 's/"//g')
 DEPS=$(shell go list -f '{{range .TestImports}}{{.}} {{end}}' ./...)
@@ -36,6 +37,14 @@ static: golang deps
 docker: static
 	@echo "--> Building the docker image"
 	docker build -t ${REGISTRY}/${AUTHOR}/${NAME}:${VERSION} .
+
+docker-build:
+	@echo "--> Compiling the project"
+	docker run -ti --rm \
+		-v ${ROOT_DIR}:/go/src/github.com/UKHomeOffice/${NAME} \
+		-w /go/src/github.com/UKHomeOffice/${NAME} \
+		-e GOOS=linux golang:${GOVERSION} \
+		make test
 
 docker-release:
 	@echo "--> Building a release image"

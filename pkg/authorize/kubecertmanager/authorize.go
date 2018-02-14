@@ -26,10 +26,10 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
 	"github.com/patrickmn/go-cache"
-	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
+	extensions "k8s.io/kubernetes/pkg/apis/extensions"
 )
 
 // resolver is purely wrapped for conveience of testing
@@ -72,7 +72,6 @@ func (c *authorizer) validateIngress(ingress *extensions.Ingress) field.ErrorLis
 	// @check if the domain is not within the internally hosts domain
 	if hosted := c.isHosted(ingress); hosted {
 		// @check we are not trying to use a http challenge
-
 		return errs
 	}
 
@@ -104,11 +103,12 @@ func (c *authorizer) validateIngress(ingress *extensions.Ingress) field.ErrorLis
 	}
 
 	// @check the dns for the hostnames are pointing to the cname of the external ingress controller
-	if pointed, err := c.isIngressPointed(ingress); err != nil {
+	pointed, err := c.isIngressPointed(ingress)
+	if err != nil {
 		return append(errs, field.InternalError(field.NewPath("dns validation"), fmt.Errorf("failed to check for dns validation: %s", err)))
-	} else {
-		errs = append(errs, pointed...)
 	}
+
+	errs = append(errs, pointed...)
 
 	return errs
 }
