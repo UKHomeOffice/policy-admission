@@ -1,10 +1,12 @@
-hash: 0ffbf71bba15cff9e0224855854d442c75fb191930e58a895cc43294ba1f0ef1
-updated: 2017-10-23T20:17:21.311883845Z
+hash: 3cc795dadc60ff7a55bcd084ee0ab7e7202ff918aaeee5cfed7d7bc312e7a46e
+updated: 2018-02-14T23:01:46.585873129Z
 imports:
 - name: github.com/davecgh/go-spew
   version: 782f4967f2dc4564575ca782fe2d04090b5faca8
   subpackages:
   - spew
+- name: github.com/dgrijalva/jwt-go
+  version: 01aeca54ebda6e0fbfafd0a524d234159c05ec20
 - name: github.com/emicklei/go-restful
   version: ff4f55a206334ef123e4f79bbf348980da81ca46
   subpackages:
@@ -58,11 +60,15 @@ imports:
   version: 5b9ff866471762aa2ab2dced63c9fb6f53921342
 - name: github.com/labstack/echo
   version: a625e589cffa33eac768ab98bc21518cef786e2d
+  subpackages:
+  - middleware
 - name: github.com/labstack/gommon
   version: 779b8a8b9850a97acba6a3fe20feb628c39e17c1
   subpackages:
+  - bytes
   - color
   - log
+  - random
 - name: github.com/mailru/easyjson
   version: d5b7844b561a7bc640052f1b935f7b800330d7e0
   subpackages:

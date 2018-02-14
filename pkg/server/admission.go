@@ -28,14 +28,15 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
 	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	admission "k8s.io/api/admission/v1alpha1"
 	v1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	core "k8s.io/kubernetes/pkg/api"
+	extensions "k8s.io/kubernetes/pkg/apis/extensions"
 )
 
 func init() {
@@ -232,8 +233,12 @@ func New(config *Config, providers []api.Authorize) (*Admission, error) {
 
 	// @step: create the http router
 	engine := echo.New()
+	engine.Use(middleware.Recover())
+	// @check if you want the logging
+	if c.config.EnableLogging {
+		engine.Use(c.admissionMiddlerware())
+	}
 	engine.HideBanner = true
-	//engine.Use(middleware.Recover())
 	engine.POST("/", c.admitHandler)
 	engine.GET("/health", c.healthHandler)
 

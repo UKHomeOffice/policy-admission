@@ -79,6 +79,11 @@ func main() {
 				Value:  "kube-admission",
 			},
 			cli.BoolFlag{
+				Name:   "enable-logging",
+				Usage:  "indicates you wish to log the admission requests for debugging `BOOL`",
+				EnvVar: "ENABLE_LOGGING",
+			},
+			cli.BoolFlag{
 				Name:   "enable-events",
 				Usage:  "indicates you wish to log kubernetes events on denials `BOOL`",
 				EnvVar: "ENABLE_EVENTS",
@@ -98,11 +103,12 @@ func main() {
 			}
 
 			config := &server.Config{
-				EnableEvents: cx.Bool("enable-events"),
-				Listen:       cx.String("listen"),
-				Namespace:    cx.String("namespace"),
-				TLSCert:      cx.String("tls-cert"),
-				TLSKey:       cx.String("tls-key"),
+				EnableEvents:  cx.Bool("enable-events"),
+				EnableLogging: cx.Bool("enable-logging"),
+				Listen:        cx.String("listen"),
+				Namespace:     cx.String("namespace"),
+				TLSCert:       cx.String("tls-cert"),
+				TLSKey:        cx.String("tls-key"),
 			}
 
 			// @step: create the server

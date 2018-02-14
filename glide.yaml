@@ -24,6 +24,7 @@ import:
   - pkg/api
   - pkg/apis/extensions
   - pkg/security/podsecuritypolicy
+- package: github.com/dgrijalva/jwt-go
 testImport:
 - package: github.com/stretchr/testify
   subpackages:
