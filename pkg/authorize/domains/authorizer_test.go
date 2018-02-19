@@ -73,9 +73,17 @@ func TestDomainsAuthorizer(t *testing.T) {
 			Hostname:  "test.domain.com",
 			Whitelist: " bad.domain.com,  test.domain.com",
 		},
+		"check the ingress allowed weird whitespace": {
+			Hostname:  "test.domain.com",
+			Whitelist: " bad.domain.com,test.domain.com",
+		},
 		"check the ingress allowed when using a wildcard": {
 			Hostname:  "test.domain.com",
 			Whitelist: "*.domain.com",
+		},
+		"check the ingress allow with multiple whielists": {
+			Hostname:  "test.another.example.com",
+			Whitelist: "*.domain.com,*.another.example.com",
 		},
 		"check the ingress denied for a subdomain": {
 			Hostname:  "bad.test.domain.com",

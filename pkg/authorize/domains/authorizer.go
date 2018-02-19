@@ -18,6 +18,7 @@ package domains
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -65,10 +66,11 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 	whitelist := strings.Split(annotation, ",")
 
 	for index, rule := range ingress.Spec.Rules {
-		if found := hasDomain(rule.Host, whitelist); !found {
-			path := field.NewPath("spec", "rules").Index(index).Child("host")
-			errs = append(errs, field.Invalid(path, rule.Host, "host is not permitted by namespace policy"))
+		if found := hasDomain(strings.TrimSpace(rule.Host), whitelist); found {
+			return errs
 		}
+		path := field.NewPath("spec", "rules").Index(index).Child("host")
+		errs = append(errs, field.Invalid(path, rule.Host, "host is not permitted by namespace policy"))
 	}
 
 	return errs
@@ -82,15 +84,8 @@ func hasDomain(hostname string, whitelist []string) bool {
 		wildcard := strings.HasPrefix(domain, "*.")
 		switch wildcard {
 		case true:
-			// a quick hacky check to ensure the you don't have subdomains
-			size := len(strings.Split(domain, "."))
-			hostSize := len(strings.Split(hostname, "."))
-			if size != hostSize {
-				return false
-			}
-
-			domain = strings.TrimPrefix(domain, "*")
-			if strings.HasSuffix(hostname, domain) {
+			fqdn := fmt.Sprintf("%s.%s", strings.Split(hostname, ".")[0], strings.TrimPrefix(domain, "*."))
+			if hostname == fqdn {
 				return true
 			}
 		default:
