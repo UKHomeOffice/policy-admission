@@ -33,7 +33,7 @@ import (
 
 var (
 	// Version is the version of the service
-	Version = "v0.0.10"
+	Version = "v0.0.11"
 	// GitSHA is the git sha this was built off
 	GitSHA = "unknown"
 )
@@ -83,6 +83,11 @@ func main() {
 				Usage:  "indicates you wish to log the admission requests for debugging `BOOL`",
 				EnvVar: "ENABLE_LOGGING",
 			},
+			cli.BoolTFlag{
+				Name:   "enable-metrics",
+				Usage:  "indicates you wish to expose the prometheus metrics `BOOL`",
+				EnvVar: "ENABLE_METRICS",
+			},
 			cli.BoolFlag{
 				Name:   "enable-events",
 				Usage:  "indicates you wish to log kubernetes events on denials `BOOL`",
@@ -104,6 +109,7 @@ func main() {
 
 			config := &server.Config{
 				EnableEvents:  cx.Bool("enable-events"),
+				EnableMetrics: cx.Bool("enable-metrics"),
 				EnableLogging: cx.Bool("enable-logging"),
 				Listen:        cx.String("listen"),
 				Namespace:     cx.String("namespace"),

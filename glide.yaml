@@ -25,6 +25,9 @@ import:
   - pkg/apis/extensions
   - pkg/security/podsecuritypolicy
 - package: github.com/dgrijalva/jwt-go
+- package: github.com/prometheus/client_golang
+  subpackages:
+  - prometheus
 testImport:
 - package: github.com/stretchr/testify
   subpackages:

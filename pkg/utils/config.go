@@ -54,7 +54,7 @@ func (c *Config) Read(data interface{}) error {
 		return errors.New("unsupported file format")
 	}
 
-	return nil
+	return err
 }
 
 // Watch starts watching the configu
