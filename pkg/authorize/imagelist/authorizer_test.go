@@ -122,7 +122,7 @@ func TestImageListDown(t *testing.T) {
 				{
 					Field:  "imagelist",
 					Type:   field.ErrorTypeInternal,
-					Detail: fmt.Sprintf("communication failure with imagelist: Get http://%s/bad_image:latest: dial tcp %s: getsockopt: connection refused", hostname, hostname),
+					Detail: fmt.Sprintf("communication failure with imagelist: Get http://%s/bad_image:latest: dial tcp %s: connect: connection refused", hostname, hostname),
 				},
 			},
 		},
