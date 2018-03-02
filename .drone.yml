@@ -8,6 +8,8 @@ pipeline:
     commands:
       - make test
       - make static
+    when:
+      event: [pull_request, push]
 
   latest:
     image: docker:1.13
