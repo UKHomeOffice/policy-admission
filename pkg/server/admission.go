@@ -29,6 +29,7 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	admission "k8s.io/api/admission/v1alpha1"
@@ -52,6 +53,15 @@ var (
 	ErrNotSupported = errors.New("unsupported object type")
 )
 
+const (
+	// The request has been refused
+	actionDenied = "deny"
+	// The request has been accepted
+	actionAccepted = "accept"
+	// The request has cause an error
+	actionErrored = "error"
+)
+
 // AdmitStatus is the used to hold the result of review
 type AdmitStatus struct {
 	// Kind is the kind of object
@@ -70,6 +80,8 @@ func (c *Admission) admit(review *admission.AdmissionReview) error {
 			"error":     err.Error(),
 			"namespace": review.Spec.Namespace,
 		}).Errorf("unable to handle admission review")
+
+		admissionErrorMetric.Inc()
 
 		return err
 	}
@@ -96,6 +108,7 @@ func (c *Admission) admit(review *admission.AdmissionReview) error {
 
 		return nil
 	}
+	admissionTotalMetric.WithLabelValues(actionAccepted).Inc()
 	review.Status.Allowed = true
 
 	log.WithFields(log.Fields{
@@ -138,7 +151,14 @@ func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (bo
 		}
 		object.SetNamespace(review.Spec.Namespace)
 
-		if errs := provider.Admit(c.client, c.resourceCache, object); len(errs) > 0 {
+		errs := func() field.ErrorList {
+			start := time.Now()
+			defer admissionAuthorizerLatencyMetric.WithLabelValues(provider.Name()).Observe(time.Since(start).Seconds())
+			return provider.Admit(c.client, c.resourceCache, object)
+		}()
+
+		if len(errs) > 0 {
+			admissionAuthorizerActionMetric.WithLabelValues(provider.Name(), actionDenied).Inc()
 			// @check if it's an internal provider error and whether we should skip them
 			skipme := false
 			for _, x := range errs {
@@ -166,6 +186,7 @@ func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (bo
 
 			return false, status, nil
 		}
+		admissionAuthorizerActionMetric.WithLabelValues(provider.Name(), actionAccepted)
 	}
 
 	return true, status, nil
@@ -198,11 +219,13 @@ func (c *Admission) getResourceForReview(kind string, review *admission.Admissio
 
 // Start is repsonsible for starting the service up
 func (c *Admission) Start() error {
-	client, err := c.getKubernetesClient()
-	if err != nil {
-		return err
+	if c.client == nil {
+		client, err := c.getKubernetesClient()
+		if err != nil {
+			return err
+		}
+		c.client = client
 	}
-	c.client = client
 
 	go func() {
 		if err := c.engine.StartServer(c.server); err != nil {
@@ -234,13 +257,18 @@ func New(config *Config, providers []api.Authorize) (*Admission, error) {
 	// @step: create the http router
 	engine := echo.New()
 	engine.Use(middleware.Recover())
-	// @check if you want the logging
 	if c.config.EnableLogging {
 		engine.Use(c.admissionMiddlerware())
 	}
 	engine.HideBanner = true
 	engine.POST("/", c.admitHandler)
 	engine.GET("/health", c.healthHandler)
+	if config.EnableMetrics {
+		engine.GET("/metrics", func(ctx echo.Context) error {
+			prometheus.Handler().ServeHTTP(ctx.Response().Writer, ctx.Request())
+			return nil
+		})
+	}
 
 	// @step: create the http server
 	server, err := utils.NewHTTPServer(config.Listen, config.TLSCert, config.TLSKey)

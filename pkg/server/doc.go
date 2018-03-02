@@ -53,6 +53,8 @@ type Admission struct {
 type Config struct {
 	// EnableEvents indicates we should enable event logging
 	EnableEvents bool `yaml:"enable-events"`
+	// EnableMetrics indicates we should expose the metrics
+	EnableMetrics bool `yaml:"enable-metrics"`
 	// EnableLogging indicates we want to see the admission request
 	EnableLogging bool `yaml:"enable-logging"`
 	// Listen is the interface we are listening on

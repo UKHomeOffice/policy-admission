@@ -19,6 +19,9 @@ package server
 import (
 	"fmt"
 	"io/ioutil"
+	"time"
+
+	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
 	api "k8s.io/api/core/v1"
@@ -51,14 +54,19 @@ func (c *Admission) getKubernetesClient() (kubernetes.Interface, error) {
 
 // createPodDeniedEvent is responsible for pushing a denial event into kubernetes events
 func (c *Admission) createPodDeniedEvent(client kubernetes.Interface, object metav1.Object, reason string) {
-	_, err := client.CoreV1().Events(c.config.Namespace).Create(&api.Event{
-		Message: fmt.Sprintf("Pod denied in namespace: '%s', object: '%s'", object.GetNamespace(), object.GetGenerateName()),
-		Reason:  "PodForbidden",
-		Source:  api.EventSource{Component: admissionControllerName},
-		Type:    "Warning",
-	})
+	go func() {
+		err := utils.Retry(5, time.Second*3, func() error {
+			_, err := client.CoreV1().Events(c.config.Namespace).Create(&api.Event{
+				Message: fmt.Sprintf("Pod denied in namespace: '%s', object: '%s'", object.GetNamespace(), object.GetGenerateName()),
+				Reason:  "PodForbidden",
+				Source:  api.EventSource{Component: admissionControllerName},
+				Type:    "Warning",
+			})
 
-	if err != nil {
-		log.WithFields(log.Fields{"error": err.Error()}).Warnf("failed to create the kubernetes event")
-	}
+			return err
+		})
+		if err != nil {
+			log.WithFields(log.Fields{"error": err.Error()}).Warnf("failed to create the kubernetes event")
+		}
+	}()
 }

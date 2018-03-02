@@ -58,22 +58,22 @@ func newWrapper(name, path string) (api.Authorize, error) {
 }
 
 // Admit makes a decision on the pod acceptance
-func (c *wrapper) Admit(client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
-	c.RLock()
-	defer c.RUnlock()
-	return c.provider.Admit(client, mcache, object)
+func (w *wrapper) Admit(client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
+	w.RLock()
+	defer w.RUnlock()
+	return w.provider.Admit(client, mcache, object)
 }
 
 // Name is the name of the provider
-func (c *wrapper) Name() string {
-	return c.provider.Name()
+func (w *wrapper) Name() string {
+	return w.provider.Name()
 }
 
 // FilterOn return the filter for the provider
-func (c *wrapper) FilterOn() api.Filter {
-	c.RLock()
-	defer c.RUnlock()
-	return c.provider.FilterOn()
+func (w *wrapper) FilterOn() api.Filter {
+	w.RLock()
+	defer w.RUnlock()
+	return w.provider.FilterOn()
 }
 
 func (w *wrapper) watchConfigChanges() error {
@@ -88,6 +88,8 @@ func (w *wrapper) watchConfigChanges() error {
 			case <-update:
 				p, err := newAuthorizer(w.provider.Name(), w.config)
 				if err == nil {
+					configReloadErrorMetrics.WithLabelValues(w.config).Inc()
+					
 					log.WithFields(log.Fields{
 						"error": err.Error(),
 						"name":  w.provider.Name(),
@@ -112,6 +114,8 @@ func (w *wrapper) watchConfigChanges() error {
 func (w *wrapper) update(provider api.Authorize) {
 	w.Lock()
 	defer w.Unlock()
+
+	configReloadMetric.WithLabelValues(w.config).Inc()
 
 	log.WithFields(log.Fields{
 		"name": provider.Name(),

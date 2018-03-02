@@ -18,6 +18,7 @@ package server
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo"
 	log "github.com/sirupsen/logrus"
@@ -27,6 +28,8 @@ import (
 // admitHandler is responsible for handling the authorization request
 func (c *Admission) admitHandler(ctx echo.Context) error {
 	review := &admission.AdmissionReview{}
+	start := time.Now()
+	defer admissionRequestLatencyMetric.Observe(time.Since(start).Seconds())
 
 	// @step: we need to unmarshal the review
 	if err := ctx.Bind(review); err != nil {

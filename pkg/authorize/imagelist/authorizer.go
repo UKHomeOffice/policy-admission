@@ -75,10 +75,12 @@ func (c *authorizer) validateImage(fld *field.Path, container []core.Container) 
 		// @check if the result was cached and if not, we need to make the call
 		permit, found := c.lcache.Get(container.Image)
 		if !found {
+			start := time.Now()
 			permit, err = c.handleImageRequest(container.Image)
 			if err != nil {
 				return append(errs, field.InternalError(field.NewPath("imagelist"), fmt.Errorf("communication failure with imagelist: %s", err.Error())))
 			}
+			imageListRequestLatencyMetric.Observe(time.Since(start).Seconds())
 		}
 		allowed := permit.(bool)
 

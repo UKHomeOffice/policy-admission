@@ -88,7 +88,7 @@ func newTestKubernetesClient() kubernetes.Interface {
 }
 
 func newTestConfig() *Config {
-	return &Config{Listen: "127.0.0.1:8080"}
+	return &Config{Listen: "127.0.0.1:8080", EnableMetrics: true}
 }
 
 // runTests performs a series of tests on the service

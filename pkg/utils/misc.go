@@ -37,7 +37,7 @@ var (
 // CacheFn is a cache return function, assuming the resource in not found in the cache
 type CacheFn func(kubernetes.Interface, string) (interface{}, error)
 
-// NewHttpServer creates and returns a new http server
+// NewHTTPServer creates and returns a new http server
 func NewHTTPServer(listen, cert, key string) (*http.Server, error) {
 	server := &http.Server{
 		Addr:         listen,
@@ -86,9 +86,14 @@ func GetCachedResource(client kubernetes.Interface, ca *cache.Cache, key string,
 	// @step: attempt to retrieve the resource from the cache
 	resource, found := ca.Get(key)
 	if found {
+		cacheHitMetric.WithLabelValues("miss").Inc()
 		return resource, nil
 	}
+	cacheHitMetric.WithLabelValues("hit").Inc()
 
+	tm := time.Now()
+	defer cacheLatencyMetric.Observe(time.Since(tm).Seconds())
+	
 	// @step: else we need to grab the resource method
 	errorCh := make(chan error, 0)
 	doneCh := make(chan interface{}, 0)
