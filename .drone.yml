@@ -4,10 +4,12 @@ workspace:
 
 pipeline:
   tests:
-    image: golang:1.9
+    image: golang:1.10
     commands:
       - make test
       - make static
+    when:
+      event: [pull_request, push]
 
   latest:
     image: docker:1.13
