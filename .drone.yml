@@ -9,7 +9,7 @@ pipeline:
       - make test
       - make static
     when:
-      event: [pull_request, push]
+      event: [pull_request, push, tag]
 
   latest:
     image: docker:1.13
