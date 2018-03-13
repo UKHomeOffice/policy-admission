@@ -170,6 +170,66 @@ func TestHostNetworkPodChecks(t *testing.T) {
 	checkAuthorizer(t, checks)
 }
 
+func TestInitContainerSubPaths(t *testing.T) {
+	pod := newTestPod()
+	pod.Spec.InitContainers = []core.Container{
+		{
+			Image: "alpine",
+			SecurityContext: &core.SecurityContext{
+				RunAsNonRoot: &isTrue,
+			},
+			VolumeMounts: []core.VolumeMount{
+				{Name: "test"},
+				{Name: "donotmount", SubPath: "test/"},
+			},
+		},
+	}
+	checks := map[string]podCheck{
+		"ensure the pod is denied when initcontainer volumes has a subpath": {
+			Pod: pod,
+			Errors: field.ErrorList{
+				{
+					BadValue: "test/",
+					Detail:   "subpath in volumeMount is not permitted",
+					Field:    "spec.initContainers[0].volumeMounts[1].subPath",
+					Type:     field.ErrorTypeInvalid,
+				},
+			},
+		},
+	}
+	checkAuthorizer(t, checks)
+}
+
+func TestContainerSubPaths(t *testing.T) {
+	pod := newTestPod()
+	pod.Spec.Containers = []core.Container{
+		{
+			Image: "alpine",
+			SecurityContext: &core.SecurityContext{
+				RunAsNonRoot: &isTrue,
+			},
+			VolumeMounts: []core.VolumeMount{
+				{Name: "test"},
+				{Name: "donotmount", SubPath: "test/"},
+			},
+		},
+	}
+	checks := map[string]podCheck{
+		"ensure the pod is denied when container volumes has a subpath": {
+			Pod: pod,
+			Errors: field.ErrorList{
+				{
+					BadValue: "test/",
+					Detail:   "subpath in volumeMount is not permitted",
+					Field:    "spec.containers[0].volumeMounts[1].subPath",
+					Type:     field.ErrorTypeInvalid,
+				},
+			},
+		},
+	}
+	checkAuthorizer(t, checks)
+}
+
 func TestPodVolumeChecks(t *testing.T) {
 	hostPathPod := newTestPod()
 	hostPathPod.Spec.Volumes = []core.Volume{

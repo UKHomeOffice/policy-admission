@@ -33,8 +33,10 @@ const (
 
 // Config the security policies configuration
 type Config struct {
-	// Defaul is the name of the default policy to user
+	// Default is the name of the default policy to user
 	Default string `yaml:"default" json:"default"`
+	// EnableSubPaths indicates if subpaths on volumes are enabled
+	EnableSubPaths bool `yaml:"enable-subpaths" json:"enable-subpaths"`
 	// IgnoreNamespaces is a collection of namespace to bypass enforcement
 	IgnoreNamespaces []string `yaml:"ignored-namespaces" json:"ignored-namespaces"`
 	// Policies is a list of pod security policies which are available
