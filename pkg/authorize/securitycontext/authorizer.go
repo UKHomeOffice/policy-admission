@@ -103,7 +103,9 @@ func (c *authorizer) validatePod(provider podsecuritypolicy.Provider, pod *core.
 
 // validateContainers is responisble for iterating the containers and validating against the policy
 func (c *authorizer) validateContainers(path *field.Path, provider podsecuritypolicy.Provider, pod *core.Pod, containers []core.Container) field.ErrorList {
-	for i, _ := range containers {
+	var errs field.ErrorList
+
+	for i := range containers {
 		// set some same defaults or take the pods default
 		containers[i].SecurityContext = assignSecurityContext(pod, &containers[i])
 
@@ -113,13 +115,26 @@ func (c *authorizer) validateContainers(path *field.Path, provider podsecuritypo
 		}
 		containers[i].SecurityContext = sc
 
-		violations := provider.ValidateContainerSecurityContext(pod, &containers[i], path.Index(i).Child("securityContext"))
-		if len(violations) > 0 {
-			return violations
+		errs = append(errs, provider.ValidateContainerSecurityContext(pod, &containers[i], path.Index(i).Child("securityContext"))...)
+
+		if !c.config.EnableSubPaths {
+			errs = append(errs, validateContainerSubPaths(path.Index(i), &containers[i])...)
 		}
 	}
 
-	return field.ErrorList{}
+	return errs
+}
+
+// validateContainerSubPaths ensures the container has not subpaths in the volumes
+func validateContainerSubPaths(path *field.Path, container *core.Container) field.ErrorList {
+	var errs field.ErrorList
+	for i, x := range container.VolumeMounts {
+		if x.SubPath != "" {
+			errs = append(errs, field.Invalid(path.Child("volumeMounts").Index(i).Child("subPath"), x.SubPath, "subpath in volumeMount is not permitted"))
+		}
+	}
+
+	return errs
 }
 
 // assignSecurityContext is responsible for assigning some defaults
