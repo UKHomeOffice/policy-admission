@@ -5,7 +5,7 @@ RUN apk add ca-certificates --no-cache
 
 ADD bin/policy-admission /policy-admission
 
-RUN adduser -D controller
+RUN adduser -D -u 1000 controller
 
 USER 1000
 

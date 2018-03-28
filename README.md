@@ -5,13 +5,13 @@ The [policy-admission](https://github.com/UKHomeOffice/policy-admission) is a [c
 ```shell
 [jest@starfury policy-admission]$ bin/policy-admission help
 NAME:
-   policy-admission - is a service used to enforce secuirty policy within a cluster
+   policy-admission - is a service used to enforce security policy within a cluster
 
 USAGE:
     [global options] command [command options] [arguments...]
 
 VERSION:
-   v0.0.3 (git+sha: c7d426b-dirty)
+   v0.0.13 (git+sha: 01de112)
 
 AUTHOR:
    Rohith Jayawardene <gambol99@gmail.com>
@@ -20,14 +20,16 @@ COMMANDS:
      help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --listen INTERFACE    network interace the service should listen on INTERFACE (default: ":8443") [$LISTEN]
-   --tls-cert PATH       path to a file containing the tls certificate PATH [$TLS_CERT]
-   --tls-key PATH        path to a file containing the tls key PATH [$TLS_KEY]
-   --authorizer value    enable a admission authorizer, the format is name=config_path (i.e securitycontext=config.yaml)
-   --namespace NAME      namespace to create denial events (optional as we can try and discover) NAME (default: "kube-admission") [$KUBE_NAMESPACE]
-   --enable-events BOOL  indicates you wish to log kubernetes events on denials BOOL [$ENABLE_EVENTS]
-   --help, -h            show help
-   --version, -v         print the version
+   --listen INTERFACE     network interface the service should listen on INTERFACE (default: ":8443") [$LISTEN]
+   --tls-cert PATH        path to a file containing the tls certificate PATH [$TLS_CERT]
+   --tls-key PATH         path to a file containing the tls key PATH [$TLS_KEY]
+   --authorizer value     enable an admission authorizer, the format is name=config_path (i.e securitycontext=config.yaml)
+   --namespace NAME       namespace to create denial events (optional as we can try and discover) NAME (default: "kube-admission") [$KUBE_NAMESPACE]
+   --enable-logging BOOL  indicates you wish to log the admission requests for debugging BOOL [$ENABLE_LOGGING]
+   --enable-metrics BOOL  indicates you wish to expose the prometheus metrics BOOL [$ENABLE_METRICS]
+   --enable-events BOOL   indicates you wish to log kubernetes events on denials BOOL [$ENABLE_EVENTS]
+   --help, -h             show help
+   --version, -v          print the version
 ```
 
 Note, the configuration is auto-reloaded, so you can chunk the configuration files in the [configmap](https://kubernetes.io/docs/tasks/configure-pod-container/configmap/) and on changes the authorizer will automatically pick on the changes.

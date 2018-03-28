@@ -33,7 +33,7 @@ import (
 
 var (
 	// Version is the version of the service
-	Version = "v0.0.12"
+	Version = "v0.0.13"
 	// GitSHA is the git sha this was built off
 	GitSHA = "unknown"
 )
@@ -43,7 +43,7 @@ func main() {
 		Name:    "policy-admission",
 		Author:  "Rohith Jayawardene",
 		Email:   "gambol99@gmail.com",
-		Usage:   "is a service used to enforce secuirty policy within a cluster",
+		Usage:   "is a service used to enforce security policy within a cluster",
 		Version: fmt.Sprintf("%s (git+sha: %s)", Version, GitSHA),
 
 		OnUsageError: func(context *cli.Context, err error, isSubcommand bool) error {
@@ -54,7 +54,7 @@ func main() {
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:   "listen",
-				Usage:  "network interace the service should listen on `INTERFACE`",
+				Usage:  "network interface the service should listen on `INTERFACE`",
 				Value:  ":8443",
 				EnvVar: "LISTEN",
 			},
@@ -70,7 +70,7 @@ func main() {
 			},
 			cli.StringSliceFlag{
 				Name:  "authorizer",
-				Usage: "enable a admission authorizer, the format is name=config_path (i.e securitycontext=config.yaml)",
+				Usage: "enable an admission authorizer, the format is name=config_path (i.e securitycontext=config.yaml)",
 			},
 			cli.StringFlag{
 				Name:   "namespace",
