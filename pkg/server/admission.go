@@ -29,14 +29,14 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/patrickmn/go-cache"
+	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
-	admission "k8s.io/api/admission/v1alpha1"
+	admission "k8s.io/api/admission/v1beta1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	core "k8s.io/kubernetes/pkg/api"
+	core "k8s.io/kubernetes/pkg/apis/core"
 	extensions "k8s.io/kubernetes/pkg/apis/extensions"
 )
 
@@ -62,103 +62,116 @@ const (
 	actionErrored = "error"
 )
 
-// AdmitStatus is the used to hold the result of review
-type AdmitStatus struct {
-	// Kind is the kind of object
-	Kind string
-	// Object is the review object
+// admissionResult is the result of a admission review
+type admissionResult struct {
+	// Allowed is shortcut if the object is permited
+	Allowed bool
+	// Object is the which was for review
 	Object metav1.Object
-	// Detail is the reason it was denied if any
-	Detail string
+	// Response is what the admission response should be
+	Status *metav1.Status
 }
 
 // admit is responsible for applying the policy on the incoming request
 func (c *Admission) admit(review *admission.AdmissionReview) error {
-	admit, status, err := c.handleAdmissionReview(review)
+	result, err := c.handleAdmissionReview(review)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error":     err.Error(),
-			"namespace": review.Spec.Namespace,
+			"namespace": review.Request.Namespace,
 		}).Errorf("unable to handle admission review")
 
 		admissionErrorMetric.Inc()
 
 		return err
 	}
+	if !result.Allowed {
+		status := result.Status
+		// @step: increment the counter
+		admissionTotalMetric.WithLabelValues(actionDenied).Inc()
 
-	if !admit {
 		log.WithFields(log.Fields{
-			"error":     status.Detail,
-			"namespace": review.Spec.Namespace,
-			"name":      status.Object.GetGenerateName(),
+			"error":     status.Message,
+			"name":      result.Object.GetGenerateName(),
+			"namespace": result.Object.GetNamespace(),
 		}).Warn("authorization for object execution denied")
 
-		review.Status.Allowed = false
-		review.Status.Result = &metav1.Status{
-			Code:    http.StatusForbidden,
-			Message: status.Detail,
-			Reason:  metav1.StatusReasonForbidden,
-			Status:  metav1.StatusFailure,
+		review.Response = &admission.AdmissionResponse{
+			Allowed: false,
+			Result: &metav1.Status{
+				Code:    http.StatusForbidden,
+				Message: status.Message,
+				Reason:  metav1.StatusReasonForbidden,
+				Status:  metav1.StatusFailure,
+			},
 		}
 
 		// @step: log the kubernetes event if required
 		if c.config.EnableEvents {
-			c.createPodDeniedEvent(c.client, status.Object, status.Detail)
+			c.createPodDeniedEvent(c.client, result.Object, status.Message)
 		}
 
 		return nil
 	}
 	admissionTotalMetric.WithLabelValues(actionAccepted).Inc()
-	review.Status.Allowed = true
+
+	review.Response = &admission.AdmissionResponse{Allowed: true}
 
 	log.WithFields(log.Fields{
-		"namespace": status.Object.GetNamespace(),
-		"status":    status.Object.GetGenerateName(),
+		"name":      result.Object.GetName(),
+		"namespace": result.Object.GetNamespace(),
 	}).Info("object is authorized for execution")
 
 	return nil
 }
 
-// handleAdmissionReview is responsible for handling the admission review
-func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (bool, AdmitStatus, error) {
-	var status AdmitStatus
+// handleAdmissionReview is responsible for handling the review and returning a result
+func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (*admissionResult, error) {
 	var object metav1.Object
 
-	kind := review.Spec.Kind.Kind
-
 	// @check if the review is for something we can process
+	kind := review.Request.Kind.Kind
 	object, err := c.getResourceForReview(kind, review)
 	if err != nil {
-		return true, status, nil
+		return nil, err
 	}
-	status.Object = object
+
+	result := &admissionResult{
+		Allowed: true,
+		Object:  object,
+		Status:  &metav1.Status{},
+	}
+	status := result.Status
 
 	// @step: iterate the authorizers and fail on first refusal
-	// @TODO: run the authorizers in parallel on multi-cores
 	for _, provider := range c.providers {
 		// @check if this authorizer is listening to this type
 		if provider.FilterOn().Kind != kind {
 			continue
 		}
+
 		// @check if the authorizer is ignoring this namespace
-		if utils.Contained(review.Spec.Namespace, provider.FilterOn().IgnoreNamespaces) {
+		if utils.Contained(review.Request.Namespace, provider.FilterOn().IgnoreNamespaces) {
 			log.WithFields(log.Fields{
 				"name":      object.GetName(),
-				"namespace": review.Spec.Namespace,
+				"namespace": review.Request.Namespace,
 				"provider":  provider.Name(),
-			}).Warn("provider ignoring namespace")
+			}).Warn("provider is ignored on this namespace")
+
 			continue
 		}
-		object.SetNamespace(review.Spec.Namespace)
+		object.SetNamespace(review.Request.Namespace)
 
 		errs := func() field.ErrorList {
-			start := time.Now()
-			defer admissionAuthorizerLatencyMetric.WithLabelValues(provider.Name()).Observe(time.Since(start).Seconds())
+			now := time.Now()
+			defer admissionAuthorizerLatencyMetric.WithLabelValues(provider.Name()).Observe(time.Since(now).Seconds())
+
 			return provider.Admit(c.client, c.resourceCache, object)
 		}()
 
 		if len(errs) > 0 {
 			admissionAuthorizerActionMetric.WithLabelValues(provider.Name(), actionDenied).Inc()
+
 			// @check if it's an internal provider error and whether we should skip them
 			skipme := false
 			for _, x := range errs {
@@ -167,9 +180,10 @@ func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (bo
 					if provider.FilterOn().IgnoreOnFailure {
 						log.WithFields(log.Fields{
 							"error":     x.Detail,
-							"namespace": status.Object.GetNamespace(),
-							"status":    status.Object.GetGenerateName(),
+							"name":      object.GetGenerateName(),
+							"namespace": object.GetNamespace(),
 						}).Warn("internal provider error, skipping the provider result")
+
 						skipme = true
 					}
 				}
@@ -182,14 +196,16 @@ func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (bo
 			for _, x := range errs {
 				reasons = append(reasons, fmt.Sprintf("%s=%v : %s", x.Field, x.BadValue, x.Detail))
 			}
-			status.Detail = strings.Join(reasons, ",")
+			result.Allowed = false
+			status.Message = strings.Join(reasons, ",")
 
-			return false, status, nil
+			return result, nil
 		}
+
 		admissionAuthorizerActionMetric.WithLabelValues(provider.Name(), actionAccepted)
 	}
 
-	return true, status, nil
+	return result, nil
 }
 
 // getResourceForReview checks the kind of resource and decodes into the specific type
@@ -197,20 +213,20 @@ func (c *Admission) getResourceForReview(kind string, review *admission.Admissio
 	var object metav1.Object
 
 	switch kind {
-	case api.FilterServices:
-		object = &core.Service{}
-	case api.FilterPods:
-		object = &core.Pod{}
 	case api.FilterIngresses:
 		object = &extensions.Ingress{}
 	case api.FilterNamespace:
 		object = &v1.Namespace{}
+	case api.FilterPods:
+		object = &core.Pod{}
+	case api.FilterServices:
+		object = &core.Service{}
 	default:
 		return nil, ErrNotSupported
 	}
 
 	// @step: decode the object into a object specification
-	if err := json.Unmarshal(review.Spec.Object.Raw, object); err != nil {
+	if err := json.Unmarshal(review.Request.Object.Raw, object); err != nil {
 		return nil, err
 	}
 

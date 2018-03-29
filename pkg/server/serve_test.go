@@ -22,10 +22,10 @@ import (
 
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/securitycontext"
 
-	admission "k8s.io/api/admission/v1alpha1"
+	admission "k8s.io/api/admission/v1beta1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	core "k8s.io/kubernetes/pkg/api"
+	core "k8s.io/kubernetes/pkg/apis/core"
 )
 
 var (
@@ -60,7 +60,7 @@ func TestAdmitHandlerChecks(t *testing.T) {
 					SecurityContext: &core.PodSecurityContext{},
 				},
 			},
-			ExpectedStatus: &admission.AdmissionReviewStatus{Allowed: true},
+			ExpectedStatus: &admission.AdmissionResponse{Allowed: true},
 		},
 		{
 			// ensure a host network is denied
@@ -68,7 +68,7 @@ func TestAdmitHandlerChecks(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "test"},
 				Spec:       core.PodSpec{SecurityContext: &core.PodSecurityContext{HostNetwork: true}},
 			},
-			ExpectedStatus: &admission.AdmissionReviewStatus{
+			ExpectedStatus: &admission.AdmissionResponse{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
 					Message: "spec.securityContext.hostNetwork=true : Host network is not allowed to be used",
@@ -83,7 +83,7 @@ func TestAdmitHandlerChecks(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "kube-system"},
 				Spec:       core.PodSpec{SecurityContext: &core.PodSecurityContext{HostNetwork: true}},
 			},
-			ExpectedStatus: &admission.AdmissionReviewStatus{Allowed: true},
+			ExpectedStatus: &admission.AdmissionResponse{Allowed: true},
 		},
 		{
 			// ensure a when namespace not there, default to default policy
@@ -91,7 +91,7 @@ func TestAdmitHandlerChecks(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "not-there"},
 				Spec:       core.PodSpec{SecurityContext: &core.PodSecurityContext{HostNetwork: true}},
 			},
-			ExpectedStatus: &admission.AdmissionReviewStatus{
+			ExpectedStatus: &admission.AdmissionResponse{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
 					Message: `not-there=<nil> : namespaces "not-there" not found`,
@@ -114,7 +114,7 @@ func TestAdmitHandlerChecks(t *testing.T) {
 					},
 				},
 			},
-			ExpectedStatus: &admission.AdmissionReviewStatus{
+			ExpectedStatus: &admission.AdmissionResponse{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
 					Message: "spec.volumes[0]=hostPath : hostPath volumes are not allowed to be used",
@@ -134,10 +134,10 @@ func TestAdmitHandlerChecks(t *testing.T) {
 					SecurityContext: &core.PodSecurityContext{},
 				},
 			},
-			ExpectedStatus: &admission.AdmissionReviewStatus{
+			ExpectedStatus: &admission.AdmissionResponse{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
-					Message: "spec.containers[0].securityContext.privileged=true : Privileged containers are not allowed",
+					Message: "spec.containers[0].privileged=true : Privileged containers are not allowed",
 					Reason:  metav1.StatusReasonForbidden,
 					Status:  metav1.StatusFailure,
 				},
@@ -154,7 +154,7 @@ func TestAdmitHandlerChecks(t *testing.T) {
 					SecurityContext: &core.PodSecurityContext{},
 				},
 			},
-			ExpectedStatus: &admission.AdmissionReviewStatus{Allowed: true},
+			ExpectedStatus: &admission.AdmissionResponse{Allowed: true},
 		},
 		{
 			// ensure a container cannot run without run-as-nonroot
@@ -167,10 +167,10 @@ func TestAdmitHandlerChecks(t *testing.T) {
 					SecurityContext: &core.PodSecurityContext{},
 				},
 			},
-			ExpectedStatus: &admission.AdmissionReviewStatus{
+			ExpectedStatus: &admission.AdmissionResponse{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
-					Message: "securityContext.runAsNonRoot=false : RunAsNonRoot must be true for container test",
+					Message: "spec.containers[0].securityContext.runAsNonRoot=false : must be true,spec.containers[0].securityContext.runAsNonRoot=false : must run as nonroot",
 					Reason:  metav1.StatusReasonForbidden,
 					Status:  metav1.StatusFailure,
 				},
@@ -188,7 +188,7 @@ func TestAdmitHandlerNamespaceIgnored(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "ignored"},
 				Spec:       core.PodSpec{SecurityContext: &core.PodSecurityContext{HostNetwork: true}},
 			},
-			ExpectedStatus: &admission.AdmissionReviewStatus{Allowed: true},
+			ExpectedStatus: &admission.AdmissionResponse{Allowed: true},
 		},
 	}
 	newTestAdmissionWithSecurityContext().runTests(t, requests)
@@ -207,7 +207,7 @@ func TestAdmitHandlerWithOutNamespaceAnnotation(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"},
 				Spec:       core.PodSpec{SecurityContext: &core.PodSecurityContext{HostNetwork: true}},
 			},
-			ExpectedStatus: &admission.AdmissionReviewStatus{
+			ExpectedStatus: &admission.AdmissionResponse{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
 					Message: "spec.securityContext.hostNetwork=true : Host network is not allowed to be used",
@@ -236,7 +236,7 @@ func TestAdmitHandlerWithNamespaceAnnotation(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"},
 				Spec:       core.PodSpec{SecurityContext: &core.PodSecurityContext{HostNetwork: true}},
 			},
-			ExpectedStatus: &admission.AdmissionReviewStatus{Allowed: true},
+			ExpectedStatus: &admission.AdmissionResponse{Allowed: true},
 		},
 	}
 	c.runTests(t, requests)

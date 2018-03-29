@@ -23,9 +23,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	admission "k8s.io/api/admission/v1alpha1"
+	admission "k8s.io/api/admission/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	core "k8s.io/kubernetes/pkg/api"
+	core "k8s.io/kubernetes/pkg/apis/core"
 )
 
 func TestDenialEventCreated(t *testing.T) {
@@ -40,7 +40,7 @@ func TestDenialEventCreated(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "test"},
 				Spec:       core.PodSpec{SecurityContext: &core.PodSecurityContext{HostNetwork: true}},
 			},
-			ExpectedStatus: &admission.AdmissionReviewStatus{
+			ExpectedStatus: &admission.AdmissionResponse{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
 					Message: "spec.securityContext.hostNetwork=true : Host network is not allowed to be used",

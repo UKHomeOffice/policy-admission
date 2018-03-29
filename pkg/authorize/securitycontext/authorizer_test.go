@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
-	core "k8s.io/kubernetes/pkg/api"
+	core "k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 )
 
@@ -89,7 +89,7 @@ func TestAllowCaps(t *testing.T) {
 		},
 	}
 	checks := map[string]podCheck{
-		"checking the pods with no non-root fail on default policy": {
+		"checking the pods with additional caps violates policy": {
 			Annotation: "default",
 			Pod:        pod,
 			Errors: field.ErrorList{
@@ -109,7 +109,7 @@ func TestRunNonRootChecks(t *testing.T) {
 	nonroot := newTestPod()
 	nonroot.Spec.Containers = []core.Container{
 		{
-			Name:            "test-1",
+			Name:            "nonroot",
 			Image:           "nginx",
 			SecurityContext: &core.SecurityContext{},
 		},
@@ -126,13 +126,19 @@ func TestRunNonRootChecks(t *testing.T) {
 	unset.Spec.Containers[0].SecurityContext.RunAsNonRoot = nil
 
 	checks := map[string]podCheck{
-		"checking the pods with no non-root fail on default policy": {
+		"checking the pods with no nonroot fail on default policy": {
 			Pod: nonroot,
 			Errors: field.ErrorList{
 				{
 					BadValue: false,
-					Detail:   "RunAsNonRoot must be true for container test-1",
-					Field:    "securityContext.runAsNonRoot",
+					Detail:   "must be true",
+					Field:    "spec.containers[0].securityContext.runAsNonRoot",
+					Type:     field.ErrorTypeInvalid,
+				},
+				{
+					BadValue: false,
+					Detail:   "runAsNonRoot cannot be false",
+					Field:    "spec.containers[0].securityContext.runAsNonRoot",
 					Type:     field.ErrorTypeInvalid,
 				},
 			},
@@ -286,7 +292,7 @@ func TestPodPrivilegedChecks(t *testing.T) {
 				{
 					BadValue: true,
 					Detail:   "Privileged containers are not allowed",
-					Field:    "spec.containers[0].securityContext.privileged",
+					Field:    "spec.containers[0].privileged",
 					Type:     field.ErrorTypeInvalid,
 				},
 			},

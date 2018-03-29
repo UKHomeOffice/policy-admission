@@ -17,7 +17,7 @@ limitations under the License.
 package tolerations
 
 import (
-	core "k8s.io/kubernetes/pkg/api"
+	core "k8s.io/kubernetes/pkg/apis/core"
 )
 
 const (

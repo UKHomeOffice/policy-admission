@@ -22,14 +22,12 @@ import (
 
 	"github.com/labstack/echo"
 	log "github.com/sirupsen/logrus"
-	admission "k8s.io/api/admission/v1alpha1"
+	admission "k8s.io/api/admission/v1beta1"
 )
 
 // admitHandler is responsible for handling the authorization request
 func (c *Admission) admitHandler(ctx echo.Context) error {
 	review := &admission.AdmissionReview{}
-	start := time.Now()
-	defer admissionRequestLatencyMetric.Observe(time.Since(start).Seconds())
 
 	// @step: we need to unmarshal the review
 	if err := ctx.Bind(review); err != nil {
@@ -41,13 +39,15 @@ func (c *Admission) admitHandler(ctx echo.Context) error {
 	}
 
 	// @step: apply the policy against the review
+	now := time.Now()
 	if err := c.admit(review); err != nil {
 		log.WithFields(log.Fields{
 			"error": err.Error(),
-		}).Error("unable to apply the policy")
+		}).Error("unable to validation request against policy")
 
 		return ctx.NoContent(http.StatusInternalServerError)
 	}
+	admissionRequestLatencyMetric.Observe(time.Since(now).Seconds())
 
 	return ctx.JSON(http.StatusOK, review)
 }
