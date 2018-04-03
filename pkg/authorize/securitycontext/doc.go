@@ -20,7 +20,7 @@ import (
 	"errors"
 	"fmt"
 
-	core "k8s.io/kubernetes/pkg/api"
+	core "k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 )
 
@@ -82,16 +82,19 @@ func (c *Config) defaultPolicy(namespace string) (string, bool) {
 
 // NewDefaultConfig returns a default configuration for the authorizer
 func NewDefaultConfig() *Config {
+	var isfalse bool
 	return &Config{
 		Default:          "default",
 		IgnoreNamespaces: []string{},
 		NamespaceMapping: make(map[string]string, 0),
 		Policies: map[string]extensions.PodSecurityPolicySpec{
 			"default": {
-				AllowedCapabilities:      []core.Capability{},
-				DefaultAddCapabilities:   []core.Capability{},
-				FSGroup:                  extensions.FSGroupStrategyOptions{Rule: extensions.FSGroupStrategyRunAsAny},
-				RequiredDropCapabilities: []core.Capability{},
+				AllowedCapabilities:             []core.Capability{},
+				DefaultAllowPrivilegeEscalation: &isfalse,
+				AllowPrivilegeEscalation:        false,
+				DefaultAddCapabilities:          []core.Capability{},
+				FSGroup:                         extensions.FSGroupStrategyOptions{Rule: extensions.FSGroupStrategyRunAsAny},
+				RequiredDropCapabilities:        []core.Capability{},
 				RunAsUser: extensions.RunAsUserStrategyOptions{
 					Rule: extensions.RunAsUserStrategyMustRunAsNonRoot,
 				},
@@ -106,18 +109,20 @@ func NewDefaultConfig() *Config {
 				},
 			},
 			"privileged": {
-				AllowedCapabilities:    []core.Capability{"*"},
-				FSGroup:                extensions.FSGroupStrategyOptions{Rule: extensions.FSGroupStrategyRunAsAny},
-				HostIPC:                true,
-				HostNetwork:            true,
-				HostPID:                true,
-				HostPorts:              []extensions.HostPortRange{{Min: 1, Max: 65536}},
-				Privileged:             true,
-				ReadOnlyRootFilesystem: false,
-				RunAsUser:              extensions.RunAsUserStrategyOptions{Rule: extensions.RunAsUserStrategyRunAsAny},
-				SELinux:                extensions.SELinuxStrategyOptions{Rule: extensions.SELinuxStrategyRunAsAny},
-				SupplementalGroups:     extensions.SupplementalGroupsStrategyOptions{Rule: extensions.SupplementalGroupsStrategyRunAsAny},
-				Volumes:                []extensions.FSType{extensions.All},
+				AllowedCapabilities:             []core.Capability{"*"},
+				DefaultAllowPrivilegeEscalation: &isfalse,
+				AllowPrivilegeEscalation:        false,
+				FSGroup:                         extensions.FSGroupStrategyOptions{Rule: extensions.FSGroupStrategyRunAsAny},
+				HostIPC:                         true,
+				HostNetwork:                     true,
+				HostPID:                         true,
+				HostPorts:                       []extensions.HostPortRange{{Min: 1, Max: 65536}},
+				Privileged:                      true,
+				ReadOnlyRootFilesystem:          false,
+				RunAsUser:                       extensions.RunAsUserStrategyOptions{Rule: extensions.RunAsUserStrategyRunAsAny},
+				SELinux:                         extensions.SELinuxStrategyOptions{Rule: extensions.SELinuxStrategyRunAsAny},
+				SupplementalGroups:              extensions.SupplementalGroupsStrategyOptions{Rule: extensions.SupplementalGroupsStrategyRunAsAny},
+				Volumes:                         []extensions.FSType{extensions.All},
 			},
 		},
 	}

@@ -30,14 +30,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	log "github.com/sirupsen/logrus"
-	admission "k8s.io/api/admission/v1alpha1"
+	admission "k8s.io/api/admission/v1beta1"
 	authentication "k8s.io/api/authentication/v1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	core "k8s.io/kubernetes/pkg/api"
+	core "k8s.io/kubernetes/pkg/apis/core"
 )
 
 // request defines a fake review request
@@ -50,7 +50,7 @@ type request struct {
 
 	ExpectedCode    int
 	ExpectedContent string
-	ExpectedStatus  *admission.AdmissionReviewStatus
+	ExpectedStatus  *admission.AdmissionResponse
 }
 
 // testAdmission is a wrapper around a test admission server
@@ -109,10 +109,10 @@ func (c *testAdmission) runTests(t *testing.T, requests []request) {
 			x.URI = "/"
 			x.Review = &admission.AdmissionReview{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "admission.k8s.io/v1alpha1",
+					APIVersion: "admission.k8s.io/v1beta1",
 					Kind:       "AdmissionReview",
 				},
-				Spec: admission.AdmissionReviewSpec{
+				Request: &admission.AdmissionRequest{
 					Kind:      metav1.GroupVersionKind{Group: "core", Version: "v1", Kind: "Pod"},
 					Name:      x.Pod.Name,
 					Namespace: x.Pod.Namespace,
@@ -159,7 +159,7 @@ func (c *testAdmission) runTests(t *testing.T, requests []request) {
 				t.Errorf("case %d, unable to decode responce, error: %s", i, err)
 				continue
 			}
-			assert.Equal(t, *x.ExpectedStatus, status.Status, "case %d: result not as expected", i)
+			assert.Equal(t, x.ExpectedStatus, status.Response, "case %d: result not as expected", i)
 		}
 	}
 }

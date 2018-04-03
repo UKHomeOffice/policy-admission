@@ -13,14 +13,14 @@ rules:
   - delete
   - update
 - apiGroups:
-  - v1
+  - "*"
   resources:
   - namespaces
   verbs:
   - get
   - list
 - apiGroups:
-  - v1
+  - "*"
   resources:
   - events
   verbs:

@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
-	core "k8s.io/kubernetes/pkg/api"
+	core "k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/security/podsecuritypolicy"
 )
@@ -49,11 +49,6 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 		return append(errs, field.InternalError(field.NewPath("object"), errors.New("invalid object, expected pod")))
 	}
 	name := c.config.Default
-
-	// @check is this namespace being ignored
-	if utils.Contained(pod.Namespace, c.config.IgnoreNamespaces) {
-		return errs
-	}
 
 	// @step: select the policy to apply against
 	if override, found := c.config.defaultPolicy(pod.Namespace); found {
@@ -82,43 +77,98 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 		return errs
 	}
 
+	policy := c.config.Policies[name]
 	// @check if the init container are valid agains the policy
-	errs = append(errs, c.validateContainers(field.NewPath("spec", "initContainers"), provider, pod, pod.Spec.InitContainers)...)
+	errs = append(errs, c.validateContainers(field.NewPath("spec", "initContainers"), &policy, provider, pod, pod.Spec.InitContainers)...)
 	// @check the main containers to not invalidate the psp
-	errs = append(errs, c.validateContainers(field.NewPath("spec", "containers"), provider, pod, pod.Spec.Containers)...)
+	errs = append(errs, c.validateContainers(field.NewPath("spec", "containers"), &policy, provider, pod, pod.Spec.Containers)...)
 
 	return errs
 }
 
 // validatePod is responsible for valudating the pod spec against the psp
 func (c *authorizer) validatePod(provider podsecuritypolicy.Provider, pod *core.Pod) field.ErrorList {
-	sc, _, err := provider.CreatePodSecurityContext(pod)
-	if err != nil {
+	if err := provider.DefaultPodSecurityContext(pod); err != nil {
 		return field.ErrorList{{Type: field.ErrorTypeInternal, Detail: err.Error()}}
 	}
-	pod.Spec.SecurityContext = sc
 
-	return provider.ValidatePodSecurityContext(pod, field.NewPath("spec", "securityContext"))
+	return provider.ValidatePod(pod, field.NewPath("spec", "securityContext"))
 }
 
 // validateContainers is responisble for iterating the containers and validating against the policy
-func (c *authorizer) validateContainers(path *field.Path, provider podsecuritypolicy.Provider, pod *core.Pod, containers []core.Container) field.ErrorList {
+func (c *authorizer) validateContainers(path *field.Path, policy *extensions.PodSecurityPolicySpec, provider podsecuritypolicy.Provider, pod *core.Pod, containers []core.Container) field.ErrorList {
+
 	var errs field.ErrorList
 
+	noRoot := policy.RunAsUser.Rule == extensions.RunAsUserStrategyMustRunAsNonRoot
 	for i := range containers {
-		// set some same defaults or take the pods default
 		containers[i].SecurityContext = assignSecurityContext(pod, &containers[i])
 
-		sc, _, err := provider.CreateContainerSecurityContext(pod, &containers[i])
-		if err != nil {
+		if err := provider.DefaultContainerSecurityContext(pod, &containers[i]); err != nil {
 			return field.ErrorList{{Type: field.ErrorTypeInternal, Detail: err.Error()}}
 		}
-		containers[i].SecurityContext = sc
-
-		errs = append(errs, provider.ValidateContainerSecurityContext(pod, &containers[i], path.Index(i).Child("securityContext"))...)
+		errs = append(errs, provider.ValidateContainerSecurityContext(pod, &containers[i], path.Index(i))...)
 
 		if !c.config.EnableSubPaths {
 			errs = append(errs, validateContainerSubPaths(path.Index(i), &containers[i])...)
+		}
+		if noRoot {
+			errs = append(errs, validateRunAsNonRoot(path.Root(), path.Index(i), pod, &containers[i])...)
+		}
+	}
+
+	return errs
+}
+
+// validateRunAsNonRoot adding a manual check for the non-root i can't get the frigging psp to work for me
+func validateRunAsNonRoot(podPath, containerPath *field.Path, pod *core.Pod, container *core.Container) field.ErrorList {
+	var errs field.ErrorList
+
+	// @step: if the pod security context is non-root we can skip
+	if pod.Spec.SecurityContext == nil && container.SecurityContext == nil {
+		return append(errs, field.Required(podPath.Child("securityContext"), "no securityContext set for the pod or container"))
+	}
+
+	var nonroot bool
+	if pod.Spec.SecurityContext != nil {
+		sc := pod.Spec.SecurityContext
+
+		if sc.RunAsUser != nil && *sc.RunAsUser == 0 {
+			errs = append(errs, field.Invalid(podPath.Child("securityContext").Child("runAsUser"), false, "runAsUser cannot be root"))
+		}
+
+		nonroot = len(errs) <= 0
+	}
+
+	// @step: we need to check the container itself
+	sc := container.SecurityContext
+	if !nonroot && sc == nil {
+		return append(errs, field.Required(containerPath.Child("securityContext"), "no security context for container and RunAsNonRoot is required"))
+	}
+
+	if nonroot {
+		// @here the pod has specified a non-root run either by runNonRoot or runAsUser
+		if sc.RunAsNonRoot != nil && *sc.RunAsNonRoot == false {
+			return append(errs, field.Invalid(containerPath.Child("securityContext").Child("runAsNonRoot"), false, "must run as nonroot"))
+		}
+		if sc.RunAsNonRoot != nil && *sc.RunAsNonRoot == false {
+			errs = append(errs, field.Invalid(containerPath.Child("securityContext").Child("runAsNonRoot"), false, "runAsNonRoot cannot be false"))
+		}
+		/*
+			if sc.RunAsUser != nil && *sc.RunAsUser == 0 {
+				return append(errs, field.Invalid(containerPath.Child("securityContext").Child("runAsUser"), 0, "runAsUser cannot be root"))
+			}
+		*/
+	} else {
+		// @here the pod is can potientially be running as root, lets check the container overrides it
+		if sc.RunAsNonRoot == nil && sc.RunAsUser == nil {
+			return append(errs, field.Required(containerPath.Child("securityContext"), "neither runAsUser or runAsNonRoot is set and the pod is set run as root"))
+		}
+		if sc.RunAsNonRoot != nil && *sc.RunAsNonRoot == false {
+			errs = append(errs, field.Invalid(containerPath.Child("securityContext").Child("runAsNonRoot"), false, "runAsNonRoot cannot be false"))
+		}
+		if sc.RunAsUser != nil && *sc.RunAsUser == 0 {
+			errs = append(errs, field.Invalid(containerPath.Child("securityContext").Child("runAsUser"), 0, "runAsUser cannout be root"))
 		}
 	}
 
