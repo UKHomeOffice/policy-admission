@@ -37,11 +37,12 @@ var (
 )
 
 type podCheck struct {
-	Annotation string
-	Context    *core.PodSecurityContext
-	Errors     field.ErrorList
-	Namespace  *v1.Namespace
-	Pod        *core.Pod
+	Annotation  string
+	Annotations map[string]string
+	Context     *core.PodSecurityContext
+	Errors      field.ErrorList
+	Namespace   *v1.Namespace
+	Pod         *core.Pod
 }
 
 func TestNew(t *testing.T) {
@@ -236,6 +237,31 @@ func TestContainerSubPaths(t *testing.T) {
 	checkAuthorizer(t, checks)
 }
 
+func TestContainerSubPathsByPass(t *testing.T) {
+	pod := newTestPod()
+	pod.Spec.Containers = []core.Container{
+		{
+			Image: "alpine",
+			SecurityContext: &core.SecurityContext{
+				RunAsNonRoot: &isTrue,
+			},
+			VolumeMounts: []core.VolumeMount{
+				{Name: "test"},
+				{Name: "donotmount", SubPath: "test/"},
+			},
+		},
+	}
+	checks := map[string]podCheck{
+		"ensure the pod is permitted when the namespace is bypassed": {
+			Annotations: map[string]string{
+				SubPathExclusionAnnotation: "true",
+			},
+			Pod: pod,
+		},
+	}
+	checkAuthorizer(t, checks)
+}
+
 func TestPodVolumeChecks(t *testing.T) {
 	hostPathPod := newTestPod()
 	hostPathPod.Spec.Volumes = []core.Volume{
@@ -320,6 +346,9 @@ func checkAuthorizer(t *testing.T, checks map[string]podCheck) {
 		}
 		if check.Annotation != "" {
 			namespace.Annotations[Annotation] = check.Annotation
+		}
+		if check.Annotations != nil {
+			namespace.Annotations = check.Annotations
 		}
 		client := fake.NewSimpleClientset()
 		client.CoreV1().Namespaces().Create(namespace)

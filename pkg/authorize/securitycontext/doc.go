@@ -29,6 +29,8 @@ const (
 	Name = "securitycontext"
 	// Annotation is the annotation which controls policy you can use
 	Annotation = "policy-admission.acp.homeoffice.gov.uk/" + Name
+	// SubPathExclusionAnnotation indicates this namespace should be excluded from subpath enforcement
+	SubPathExclusionAnnotation = "policy-admission.acp.homeoffice.gov.uk/" + Name + "/subPath"
 )
 
 // Config the security policies configuration
