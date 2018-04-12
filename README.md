@@ -11,7 +11,7 @@ USAGE:
     [global options] command [command options] [arguments...]
 
 VERSION:
-   v0.0.13 (git+sha: 01de112)
+   v0.0.14 (git+sha: 7f0fd45)
 
 AUTHOR:
    Rohith Jayawardene <gambol99@gmail.com>
