@@ -19,6 +19,7 @@ package securitycontext
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
@@ -61,9 +62,17 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 		return append(errs, field.InternalError(field.NewPath(pod.Namespace), err))
 	}
 
+	var bypassSubPath bool
+
 	// @check if the nanespace if annontated
 	if selected, found := namespace.GetAnnotations()[Annotation]; found {
 		name = selected
+	}
+	if selected, found := namespace.GetAnnotations()[SubPathExclusionAnnotation]; found {
+		v, err := strconv.ParseBool(selected)
+		if err == nil {
+			bypassSubPath = v
+		}
 	}
 
 	// @check the policy exists
@@ -79,9 +88,9 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 
 	policy := c.config.Policies[name]
 	// @check if the init container are valid agains the policy
-	errs = append(errs, c.validateContainers(field.NewPath("spec", "initContainers"), &policy, provider, pod, pod.Spec.InitContainers)...)
+	errs = append(errs, c.validateContainers(field.NewPath("spec", "initContainers"), &policy, provider, pod, pod.Spec.InitContainers, bypassSubPath)...)
 	// @check the main containers to not invalidate the psp
-	errs = append(errs, c.validateContainers(field.NewPath("spec", "containers"), &policy, provider, pod, pod.Spec.Containers)...)
+	errs = append(errs, c.validateContainers(field.NewPath("spec", "containers"), &policy, provider, pod, pod.Spec.Containers, bypassSubPath)...)
 
 	return errs
 }
@@ -96,7 +105,7 @@ func (c *authorizer) validatePod(provider podsecuritypolicy.Provider, pod *core.
 }
 
 // validateContainers is responisble for iterating the containers and validating against the policy
-func (c *authorizer) validateContainers(path *field.Path, policy *extensions.PodSecurityPolicySpec, provider podsecuritypolicy.Provider, pod *core.Pod, containers []core.Container) field.ErrorList {
+func (c *authorizer) validateContainers(path *field.Path, policy *extensions.PodSecurityPolicySpec, provider podsecuritypolicy.Provider, pod *core.Pod, containers []core.Container, bypass bool) field.ErrorList {
 
 	var errs field.ErrorList
 
@@ -109,7 +118,7 @@ func (c *authorizer) validateContainers(path *field.Path, policy *extensions.Pod
 		}
 		errs = append(errs, provider.ValidateContainerSecurityContext(pod, &containers[i], path.Index(i))...)
 
-		if !c.config.EnableSubPaths {
+		if !c.config.EnableSubPaths && !bypass {
 			errs = append(errs, validateContainerSubPaths(path.Index(i), &containers[i])...)
 		}
 		if noRoot {
