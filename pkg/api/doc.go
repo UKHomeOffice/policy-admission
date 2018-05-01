@@ -24,6 +24,8 @@ import (
 )
 
 var (
+	// FilterAll indicates you want to recieved all registered objects
+	FilterAll = "All"
 	// FilterAdmission indicates you want to see the admission
 	FilterAdmission = "Admission"
 	// FilterIngresses indicates you want to see pods

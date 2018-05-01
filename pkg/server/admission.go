@@ -146,7 +146,7 @@ func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (*a
 	// @step: iterate the authorizers and fail on first refusal
 	for _, provider := range c.providers {
 		// @check if this authorizer is listening to this type
-		if provider.FilterOn().Kind != kind {
+		if provider.FilterOn().Kind != kind && provider.FilterOn().Kind != api.FilterAll {
 			continue
 		}
 
