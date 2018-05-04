@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package values
+package scripts
 
 import (
 	"testing"
@@ -26,7 +26,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
@@ -47,55 +46,61 @@ func TestDefaultConfig(t *testing.T) {
 	assert.NotNil(t, NewDefaultConfig())
 }
 
-func TestNewValuesAuthorizer(t *testing.T) {
-	e, err := New(newTestConfig())
-	assert.NotNil(t, e)
-	assert.NoError(t, err)
-}
-
-func TestValuesAuthorizer(t *testing.T) {
+func TestScriptAuthorizer(t *testing.T) {
 	checks := map[string]check{
-		"check the ingress when the is denied when invalid body": {
+		"check the action is deny when a kind is pod": {
 			Config: &Config{
-				Matches: []*Match{
-					{
-						KeyFilter: "ingress.kubernetes.io/body",
-						Path:      "metadata.annotations",
-						Value:     ":traffic:",
-					},
+				Script: `
+if (object.kind == "Pod") {
+	deny("kind", "denied by security policy", object.kind)
+}
+`,
+			},
+			Object: &v1.Pod{
+				TypeMeta: metav1.TypeMeta{
+					Kind: "Pod",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
 				},
 			},
-			Object: &extensions.Ingress{
+			Errors: field.ErrorList{
+				{
+					Type:     field.ErrorTypeInvalid,
+					Field:    "kind",
+					BadValue: "Pod",
+					Detail:   "denied by security policy",
+				},
+			},
+		},
+		"check the action is deny on a annotation": {
+			Config: &Config{
+				Script: `
+if (object.kind == "Pod") {
+	v = object.metadata.annotations["something"]
+	if (v != "") {
+		deny("metadata.annotations[something]", "no permitted", v)
+	}
+}
+`,
+			},
+			Object: &v1.Pod{
+				TypeMeta: metav1.TypeMeta{
+					Kind: "Pod",
+				},
 				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
 					Annotations: map[string]string{
-						"ingress.kubernetes.io/body": "20M",
+						"something": "hello",
 					},
 				},
 			},
 			Errors: field.ErrorList{
 				{
-					Field:    `metadata.annotations[ingress.kubernetes.io/body]`,
-					BadValue: "20M",
 					Type:     field.ErrorTypeInvalid,
-					Detail:   "invalid user input, must match ^[0-9]*[mkg]$",
-				},
-			},
-		},
-		"check the ingress is passed on the when correct": {
-			Config: &Config{
-				Matches: []*Match{
-					{
-						KeyFilter: "ingress.kubernetes.io/body",
-						Path:      "metadata.annotations",
-						Value:     ":traffic:",
-					},
-				},
-			},
-			Object: &extensions.Ingress{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						"ingress.kubernetes.io/body": "20m",
-					},
+					Field:    "metadata.annotations[something]",
+					BadValue: "hello",
+					Detail:   "no permitted",
 				},
 			},
 		},

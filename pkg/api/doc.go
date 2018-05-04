@@ -28,6 +28,8 @@ var (
 	FilterAll = "All"
 	// FilterAdmission indicates you want to see the admission
 	FilterAdmission = "Admission"
+	// FilterDeployments indicates you want to see the deployments
+	FilterDeployments = "Deployment"
 	// FilterIngresses indicates you want to see pods
 	FilterIngresses = "Ingress"
 	// FilterNamespace is a Namespace

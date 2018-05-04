@@ -21,7 +21,7 @@ spec:
         fsGroup: 1000
       containers:
       - name: certs
-        image: quay.io/ukhomeofficedigital/cfssl-sidekick:v0.0.1
+        image: quay.io/ukhomeofficedigital/cfssl-sidekick:v0.0.6
         securityContext:
           runAsNonRoot: true
         resources:
@@ -31,7 +31,6 @@ spec:
         args:
         - --domain=policy-admission.${KUBE_NAMESPACE}.svc.cluster.local
         - --domain=127.0.0.1
-        - --domain=10.10.22.101
         env:
         - name: KUBE_NAMESPACE
           valueFrom:

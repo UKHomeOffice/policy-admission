@@ -50,7 +50,7 @@ var (
 			Name: "admission_latency_sec",
 			Help: "The latency broken down by authorizer in seconds",
 		},
-		[]string{"authorizer"},
+		[]string{"authorizer", "index"},
 	)
 )
 

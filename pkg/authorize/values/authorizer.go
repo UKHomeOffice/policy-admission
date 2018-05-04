@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Home Office All rights reserved.
+Copyright 2018 Home Office All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -65,19 +65,20 @@ func (c *authorizer) validateObject(matches []*Match, object metav1.Object) fiel
 
 		// @step: attempt to find the value
 		result := gjson.GetBytes(decoded, x.Path)
-		if !result.Exists() == x.Required {
+
+		if !result.Exists() && x.Required {
 			return append(errs, field.Required(field.NewPath(x.Path), "value is missing"))
 		}
 
 		// @check the actual value
-		c.validateValue(field.NewPath(x.Path), result, x, errs)
+		c.validateValue(field.NewPath(x.Path), result, x, &errs)
 	}
 
 	return errs
 }
 
 // validateValue is responsible for checking the value against the match
-func (c *authorizer) validateValue(path *field.Path, v gjson.Result, m *Match, errs field.ErrorList) {
+func (c *authorizer) validateValue(path *field.Path, v gjson.Result, m *Match, errs *field.ErrorList) {
 	if v.IsArray() {
 		for _, e := range v.Array() {
 			c.validateValue(path, e, m, errs)
@@ -95,6 +96,7 @@ func (c *authorizer) validateValue(path *field.Path, v gjson.Result, m *Match, e
 			if !filter.MatchString(key) {
 				continue
 			}
+			path = path.Key(key)
 
 			c.validateValue(path, result, m, errs)
 		}
@@ -108,9 +110,8 @@ func (c *authorizer) validateValue(path *field.Path, v gjson.Result, m *Match, e
 		// @note: this has already been validated so it's cool not to check the error
 		filter, _ = regexp.Compile(m.Value)
 	}
-
 	if !filter.MatchString(v.String()) {
-		errs = append(errs, field.Invalid(path, v.String(), fmt.Sprintf("invalid user input, must match %s", m.Value)))
+		*errs = append(*errs, field.Invalid(path, v.String(), fmt.Sprintf("invalid user input, must match %s", filter.String())))
 	}
 }
 

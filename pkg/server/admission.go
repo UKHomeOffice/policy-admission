@@ -144,7 +144,7 @@ func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (*a
 	status := result.Status
 
 	// @step: iterate the authorizers and fail on first refusal
-	for _, provider := range c.providers {
+	for i, provider := range c.providers {
 		// @check if this authorizer is listening to this type
 		if provider.FilterOn().Kind != kind && provider.FilterOn().Kind != api.FilterAll {
 			continue
@@ -164,7 +164,7 @@ func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (*a
 
 		errs := func() field.ErrorList {
 			now := time.Now()
-			defer admissionAuthorizerLatencyMetric.WithLabelValues(provider.Name()).Observe(time.Since(now).Seconds())
+			defer admissionAuthorizerLatencyMetric.WithLabelValues(provider.Name(), fmt.Sprintf("%d", i)).Observe(time.Since(now).Seconds())
 
 			return provider.Admit(c.client, c.resourceCache, object)
 		}()
