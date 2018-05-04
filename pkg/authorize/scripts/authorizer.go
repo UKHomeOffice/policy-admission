@@ -61,29 +61,24 @@ func (c *authorizer) validateObject(client kubernetes.Interface, mcache *cache.C
 	// @step: decode the object into an object
 	// @TODO there probably a better way of doing the, perhaps just passing the object??
 	err = func() error {
-		o := make(map[string]interface{}, 0)
-		ns := make(map[string]interface{}, 0)
-
-		encoded, err := json.Marshal(object)
+		obj, err := marshal(object)
 		if err != nil {
 			return err
 		}
-		if err := json.Unmarshal(encoded, &o); err != nil {
-			return err
-		}
-		encoded, err = json.Marshal(namespace)
+		ns, err := marshal(namespace)
 		if err != nil {
 			return err
 		}
-
-		if err := json.Unmarshal(encoded, &ns); err != nil {
+		cfg, err := marshal(c.config)
+		if err != nil {
 			return err
 		}
 
 		// @step: create the runtime
 		vm := otto.New()
-		vm.Set("object", o)
+		vm.Set("config", cfg)
 		vm.Set("namespace", ns)
+		vm.Set("object", obj)
 
 		// @step: setup some functions
 		vm.Set("deny", func(call otto.FunctionCall) otto.Value {
@@ -136,6 +131,22 @@ func (c *authorizer) runSafely(e *otto.Otto, script string, timeout time.Duratio
 	_, err = e.Run(script)
 
 	return err
+}
+
+// marshal converts the object for us
+func marshal(o interface{}) (map[string]interface{}, error) {
+	data := make(map[string]interface{}, 0)
+
+	encoded, err := json.Marshal(o)
+	if err != nil {
+		return data, err
+	}
+
+	if err := json.Unmarshal(encoded, &data); err != nil {
+		return data, err
+	}
+
+	return data, nil
 }
 
 // FilterOn returns the authorizer handle
