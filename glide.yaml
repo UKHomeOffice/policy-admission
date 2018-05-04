@@ -28,6 +28,7 @@ import:
 - package: github.com/prometheus/client_golang
   subpackages:
   - prometheus
+- package: github.com/robertkrimen/otto
 testImport:
 - package: github.com/stretchr/testify
   subpackages:

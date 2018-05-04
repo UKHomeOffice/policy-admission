@@ -1,14 +1,14 @@
-hash: 278b4a889a21f9c84b3ca86edf2bb04a133f062b7a64812db1d0e932b1f87176
-updated: 2018-03-29T13:18:08.422084794+01:00
+hash: 82e76a4230b0259628147dfb2202d88ccf1b94b6552d306ce918bc64a3d003e6
+updated: 2018-05-04T14:01:25.264150693+01:00
 imports:
 - name: github.com/beorn7/perks
-  version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
+  version: 3ac7bf7a47d159a033b107610db8a1b6575507a4
   subpackages:
   - quantile
 - name: github.com/dgrijalva/jwt-go
   version: 01aeca54ebda6e0fbfafd0a524d234159c05ec20
 - name: github.com/fsnotify/fsnotify
-  version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
+  version: fd9ec7deca8bf46ecd2a795baaacf2b3a9be1197
 - name: github.com/ghodss/yaml
   version: 0ca9ea5df5451ffdf184b4428c902747c2c11cd7
 - name: github.com/gogo/protobuf
@@ -58,11 +58,11 @@ imports:
 - name: github.com/patrickmn/go-cache
   version: a3647f8e31d79543b2d0f0ae2fe5c379d72cedc0
 - name: github.com/prometheus/client_golang
-  version: c3324c1198cf3374996e9d3098edd46a6b55afc9
+  version: 488edd04dc224ba64c401747cd0a4b5f05dfb234
   subpackages:
   - prometheus
 - name: github.com/prometheus/client_model
-  version: 99fa1f4be8e564e8a6b613da7fa6f46c9edafc6c
+  version: fa8ad6fec33561be4280a8f0514318c79d7f6cb6
   subpackages:
   - go
 - name: github.com/prometheus/common
@@ -72,15 +72,26 @@ imports:
   - internal/bitbucket.org/ww/goautoneg
   - model
 - name: github.com/prometheus/procfs
-  version: 65c1f6f8f0fc1e2185eb9863a3bc751496404259
+  version: abf152e5f3e97f2fafac028d2cc06c1feb87ffa5
+- name: github.com/robertkrimen/otto
+  version: 6c383dd335ef8dcccef05e651ce1eccfe4d0f011
   subpackages:
-  - xfs
+  - ast
+  - dbg
+  - file
+  - parser
+  - registry
+  - token
 - name: github.com/sirupsen/logrus
   version: f4ee69125072b22721efbe639bd0da9c9d19b8cc
 - name: github.com/spf13/pflag
   version: 4c012f6dcd9546820e378d0bdda4d8fc772cdfea
+- name: github.com/tidwall/gjson
+  version: 3cd3a1192327ac5e24f7e87824be578b0b07c604
+- name: github.com/tidwall/match
+  version: 1731857f09b1f38450e2c12409748407822dc6be
 - name: github.com/urfave/cli
-  version: 8e01ec4cd3e2d84ab2fe90d8210528ffbb06d8ff
+  version: 0bdeddeeb0f650497d603c4ad7b20cfe685682f6
 - name: github.com/valyala/bytebufferpool
   version: e746df99fe4a3986f4d4f79e13c1e0117ce9c2f7
 - name: github.com/valyala/fasttemplate
@@ -120,6 +131,10 @@ imports:
   - rate
 - name: gopkg.in/inf.v0
   version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
+- name: gopkg.in/sourcemap.v1
+  version: 6e83acea0053641eff084973fee085f0c193c61a
+  subpackages:
+  - base64vlq
 - name: gopkg.in/yaml.v2
   version: 670d4cfef0544295bc27a114dbac37980d83185a
 - name: k8s.io/api
@@ -316,7 +331,7 @@ testImports:
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: d77da356e56a7428ad25149ca77381849a6a5232
+  version: f6abca593680b2315d2075e0f5e2a9751e3f431a
   subpackages:
   - assert
   - require
