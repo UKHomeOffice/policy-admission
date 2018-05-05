@@ -34,6 +34,43 @@ GLOBAL OPTIONS:
 
 Note, the configuration is auto-reloaded, so you can chunk the configuration files in the [configmap](https://kubernetes.io/docs/tasks/configure-pod-container/configmap/) and on changes the authorizer will automatically pick on the changes.
 
+#### **Embedded Scripting**
+
+The scripts authorizer provides an embedded javascript runtime via [github.com/robertkrimen/otto](https://github.com/robertkrimen/otto). The object and namespace is inject into the script as a javascript object
+
+```Javascript
+function isFiltering(o) {
+  if (o.kind != "Ingress") {
+    return false
+  }
+  annotations = o.metadata.annotations
+  if (annotations["ingress.kubernetes.io/class"] != "default") {
+    return false
+  }
+
+  return true
+}
+
+if (isFiltering(object)) {
+  // do some logic
+  provider = o.metadata.annotations["ingress.kubernetes.io/provider"]
+  if (provider != "http") {
+    deny("metadata.annotations[ingress.kubernetes.io/provider]", "you must use a http provider", provider)
+  }
+}
+```
+
+#### **Values**
+
+The values authorizer is used to match one or more attribute targetted via jsonpath and applying the values againt a regexp.
+
+```YAML
+matches:
+- path: metadata.annotations
+  key-filter: ingress.kubernetes.io/provider
+  value: ^http$
+```
+
 #### **Ingress Domains**
 
 -----------

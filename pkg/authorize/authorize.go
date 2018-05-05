@@ -25,9 +25,11 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/images"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/kubecertmanager"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/namespaces"
+	"github.com/UKHomeOffice/policy-admission/pkg/authorize/scripts"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/securitycontext"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/services"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/tolerations"
+	"github.com/UKHomeOffice/policy-admission/pkg/authorize/values"
 )
 
 // New creates and returns a provider
@@ -52,12 +54,16 @@ func newAuthorizer(name, path string) (api.Authorize, error) {
 		return kubecertmanager.NewFromFile(path)
 	case namespaces.Name:
 		return namespaces.NewFromFile(path)
+	case scripts.Name:
+		return scripts.NewFromFile(path)
 	case securitycontext.Name:
 		return securitycontext.NewFromFile(path)
 	case services.Name:
 		return services.NewFromFile(path)
 	case tolerations.Name:
 		return tolerations.NewFromFile(path)
+	case values.Name:
+		return values.NewFromFile(path)
 	default:
 		return nil, errors.New("unsupported authorizer")
 	}
