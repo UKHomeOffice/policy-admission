@@ -20,6 +20,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
@@ -133,22 +135,6 @@ func (c *authorizer) runSafely(e *otto.Otto, script string, timeout time.Duratio
 	return err
 }
 
-// marshal converts the object for us
-func marshal(o interface{}) (map[string]interface{}, error) {
-	data := make(map[string]interface{}, 0)
-
-	encoded, err := json.Marshal(o)
-	if err != nil {
-		return data, err
-	}
-
-	if err := json.Unmarshal(encoded, &data); err != nil {
-		return data, err
-	}
-
-	return data, nil
-}
-
 // FilterOn returns the authorizer handle
 func (c *authorizer) FilterOn() api.Filter {
 	kind := c.config.Kind
@@ -191,4 +177,38 @@ func NewFromFile(path string) (api.Authorize, error) {
 	}
 
 	return New(cfg)
+}
+
+// marshal converts the object for us
+func marshal(o interface{}) (map[string]interface{}, error) {
+	data := make(map[string]interface{}, 0)
+
+	encoded, err := json.Marshal(o)
+	if err != nil {
+		return data, err
+	}
+
+	if err := json.Unmarshal(encoded, &data); err != nil {
+		return data, err
+	}
+
+	return data, nil
+}
+
+// hasImage checks if a group of containers is using a particular image
+func hasImage(filter string, containers []map[string]interface{}) (bool, error) {
+	matcher, err := regexp.Compile(filter)
+	if err != nil {
+		return false, err
+	}
+
+	for _, x := range containers {
+		if im, found := x["image"]; found {
+			if matcher.MatchString(fmt.Sprintf("%v", im)) {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
 }

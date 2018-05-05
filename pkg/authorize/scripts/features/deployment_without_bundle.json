@@ -1,0 +1,137 @@
+{
+  "apiVersion": "extensions/v1beta1",
+  "kind": "Deployment",
+  "metadata": {
+    "labels": {
+      "name": "policy-admission"
+    },
+    "name": "policy-admission",
+    "namespace": "test"
+  },
+  "spec": {
+    "selector": {
+      "matchLabels": {
+        "name": "policy-admission"
+      }
+    },
+    "strategy": {
+      "rollingUpdate": {
+        "maxSurge": 1,
+        "maxUnavailable": 2
+      },
+      "type": "RollingUpdate"
+    },
+    "template": {
+      "metadata": {
+        "annotations": {
+          "build": "https://github.com/UKHomeOffice/policy-admission"
+        },
+        "labels": {
+          "name": "policy-admission"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "args": [
+              "--authorizer=domains=/config/domains.yml",
+              "--authorizer=services=/config/services.yml",
+              "--authorizer=tolerations=/config/tolerations.yml",
+              "--listen=:8443",
+              "--tls-cert=/certs/tls.pem",
+              "--tls-key=/certs/tls-key.pem"
+            ],
+            "image": "quay.io/ukhomeofficedigital/policy-admission:v0.0.14",
+            "name": "controller",
+            "ports": [
+              {
+                "containerPort": 8443,
+                "name": "https",
+                "protocol": "TCP"
+              }
+            ],
+            "securityContext": {
+              "runAsNonRoot": true
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/certs",
+                "name": "certs",
+                "readOnly": true
+              },
+              {
+                "mountPath": "/config",
+                "name": "config",
+                "readOnly": true
+              },
+              {
+                "mountPath": "/etc/ssl/certs",
+                "name": "bundle",
+                "readOnly": true
+              }
+            ]
+          }
+        ],
+        "initContainers": [
+          {
+            "args": [
+              "--domain=policy-admission.${KUBE_NAMESPACE}.svc.cluster.local",
+              "--domain=policy-admission.kube-admission.svc",
+              "--domain=localhost",
+              "--onetime=true",
+              "--verbose=true"
+            ],
+            "env": [
+              {
+                "name": "KUBE_NAMESPACE",
+                "valueFrom": {
+                  "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "metadata.namespace"
+                  }
+                }
+              }
+            ],
+            "image": "quay.io/ukhomeofficedigital/cfssl-sidekick:v0.0.6",
+            "name": "certs",
+            "securityContext": {
+              "runAsNonRoot": true
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/certs",
+                "name": "certs"
+              }
+            ]
+          }
+        ],
+        "securityContext": {
+          "fsGroup": 1000,
+          "runAsUser": 1000
+        },
+        "serviceAccount": "policy-admission",
+        "serviceAccountName": "policy-admission",
+        "volumes": [
+          {
+            "emptyDir": {},
+            "name": "certs"
+          },
+          {
+            "configMap": {
+              "defaultMode": 420,
+              "name": "policy-admission"
+            },
+            "name": "config"
+          },
+          {
+            "configMap": {
+              "defaultMode": 420,
+              "name": "bundle"
+            },
+            "name": "bundle"
+          }
+        ]
+      }
+    }
+  }
+}

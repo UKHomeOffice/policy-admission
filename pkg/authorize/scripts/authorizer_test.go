@@ -17,6 +17,8 @@ limitations under the License.
 package scripts
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"testing"
 	"time"
 
@@ -26,6 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
@@ -37,9 +40,11 @@ type testAuthorizer struct {
 }
 
 type check struct {
-	Config *Config
-	Errors field.ErrorList
-	Object metav1.Object
+	Config     *Config
+	Errors     field.ErrorList
+	Object     metav1.Object
+	ObjectFile string
+	ScriptFile string
 }
 
 func TestDefaultConfig(t *testing.T) {
@@ -104,6 +109,22 @@ if (object.kind == "Pod") {
 				},
 			},
 		},
+		"checking the deployment is allowed with bundle": {
+			ScriptFile: "features/deny_no_bundle.js",
+			ObjectFile: "features/deployment_with_bundle.json",
+		},
+		"checking the deployment is denied without bundle": {
+			ScriptFile: "features/deny_no_bundle.js",
+			ObjectFile: "features/deployment_without_bundle.json",
+			Errors: field.ErrorList{
+				{
+					Type:     field.ErrorTypeInvalid,
+					BadValue: "",
+					Field:    "spec.initContainers[0].volumeMounts",
+					Detail:   "cfssl-sidekick container needs to mount configmap: bundle in /etc/ssl/certs",
+				},
+			},
+		},
 	}
 	newTestAuthorizer(t, nil).runChecks(t, checks)
 }
@@ -130,7 +151,25 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]check) {
 
 	for desc, check := range checks {
 		s := c.svc.(*authorizer)
-		s.config = check.Config
+
+		if check.ScriptFile != "" {
+			content, err := ioutil.ReadFile(check.ScriptFile)
+			require.NoError(t, err, "case: %s, unable to read in request file, error: %s", desc, err)
+			s.config.Script = string(content)
+		} else {
+			s.config = check.Config
+		}
+
+		if check.ObjectFile != "" {
+			encoded, err := ioutil.ReadFile(check.ObjectFile)
+			require.NoError(t, err, "case: %s, unable to read in script file, error: %s", desc, err)
+
+			object := &extensions.Deployment{}
+			if err = json.Unmarshal(encoded, object); err != nil {
+				require.NoError(t, err, "case: %s, unable to unmarshal, error: %s", desc, err)
+			}
+			check.Object = object
+		}
 
 		assert.Equal(t, check.Errors, c.svc.Admit(client, mcache, check.Object), "case: '%s' result not as expected", desc)
 	}
