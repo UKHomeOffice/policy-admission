@@ -27,18 +27,33 @@ const (
 
 var (
 	// AlphaRegex is a alpha regex
-	AlphaRegex = regexp.MustCompile("^[a-zA-Z]*$")
+	AlphaRegex = regexp.MustCompile(`^[a-zA-Z\\-]*$`)
+	// BooleanRegex is a boolean regex
+	BooleanRegex = regexp.MustCompile(`^(true|false)$`)
+	// DurationRegex is the duration
+	DurationRegex = regexp.MustCompile(`^[0-9]*[sm]$`)
+	// FloatRegex is a float regex
+	FloatRegex = regexp.MustCompile(`[-+]?([0-9]*\.[0-9]+|[0-9]+)`)
 	// NumericRegex is a numeric regex
-	NumericRegex = regexp.MustCompile("^[0-9]*$")
+	NumericRegex = regexp.MustCompile(`^[0-9]*$`)
 	// TrafficRegex is a traffic spec i.e. 2m 2048k
-	TrafficRegex = regexp.MustCompile("^[0-9]*[mkg]$")
+	TrafficRegex = regexp.MustCompile(`^[0-9]*[mkg]$`)
+	// URIRegex is the uri regex
+	URIRegex = regexp.MustCompile(`^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?`)
+	// URLRegex is the url regex
+	URLRegex = regexp.MustCompile(`https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)`)
 )
 
 var (
 	filters = map[string]*regexp.Regexp{
-		":alpha:":   AlphaRegex,
-		":numeric:": NumericRegex,
-		":traffic:": TrafficRegex,
+		":alpha:":    AlphaRegex,
+		":boolean:":  BooleanRegex,
+		":duration:": DurationRegex,
+		":float:":    FloatRegex,
+		":integer:":  NumericRegex,
+		":traffic:":  TrafficRegex,
+		":uri":       URIRegex,
+		":url":       URLRegex,
 	}
 )
 
@@ -46,6 +61,8 @@ var (
 type Config struct {
 	// IgnoreNamespaces is list of namespace to
 	IgnoreNamespaces []string `yaml:"ignored-namespaces" json:"ignored-namespaces"`
+	// FilterOn indicates what you want to filter on
+	FilterOn string `yaml:"filter-on" json:"filter-on"`
 	// Matches is a collection of matches
 	Matches []*Match `yaml:"matches" json:"matches"`
 }
