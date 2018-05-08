@@ -99,6 +99,36 @@ func TestValuesAuthorizer(t *testing.T) {
 				},
 			},
 		},
+		"check the key filter is not there there is no denial": {
+			Config: &Config{
+				Matches: []*Match{
+					{
+						KeyFilter: "ingress.kubernetes.io/body",
+						Path:      "metadata.annotations",
+						Value:     ":traffic:",
+					},
+				},
+			},
+			Object: &extensions.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"nothing_here": "nothing",
+					},
+				},
+			},
+		},
+		"check the value is not there, we dont deny": {
+			Config: &Config{
+				Matches: []*Match{
+					{
+						KeyFilter: "ingress.kubernetes.io/body",
+						Path:      "metadata.annotations",
+						Value:     ":traffic:",
+					},
+				},
+			},
+			Object: &extensions.Ingress{},
+		},
 	}
 	newTestAuthorizer(t, nil).runChecks(t, checks)
 }
