@@ -66,8 +66,11 @@ func (c *authorizer) validateObject(matches []*Match, object metav1.Object) fiel
 		// @step: attempt to find the value
 		result := gjson.GetBytes(decoded, x.Path)
 
-		if !result.Exists() && x.Required {
-			return append(errs, field.Required(field.NewPath(x.Path), "value is missing"))
+		if !result.Exists() {
+			if x.Required {
+				return append(errs, field.Required(field.NewPath(x.Path), "value is missing"))
+			}
+			continue
 		}
 
 		// @check the actual value
@@ -88,12 +91,9 @@ func (c *authorizer) validateValue(path *field.Path, v gjson.Result, m *Match, e
 	}
 
 	if v.IsObject() {
-		// @step: create the filter for the keys, @note this has already be input checked
-		filter, _ := regexp.Compile(m.KeyFilter)
-
 		// @step: iterate the keys, filter if required and match against the match
 		for key, result := range v.Map() {
-			if !filter.MatchString(key) {
+			if key != m.KeyFilter {
 				continue
 			}
 			path = path.Key(key)
@@ -143,13 +143,6 @@ func New(config *Config) (api.Authorize, error) {
 	for i, x := range config.Matches {
 		if x.Path == "" {
 			return nil, fmt.Errorf("match[%d].path is not set", i)
-		}
-		if x.KeyFilter != "" {
-			if _, err := regexp.Compile(x.KeyFilter); err != nil {
-				return nil, fmt.Errorf("match[%d].key-filter is invalid: %s", i, err)
-			}
-		} else {
-			x.KeyFilter = ".*"
 		}
 		if x.Value != "" {
 			if _, err := regexp.Compile(x.Value); err != nil {
