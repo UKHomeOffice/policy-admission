@@ -113,6 +113,40 @@ if (object.kind == "Pod") {
 			ScriptFile: "features/deny_no_bundle.js",
 			ObjectFile: "features/deployment_with_bundle.json",
 		},
+		"checking the ingress scripts find the errors": {
+			ScriptFile: "features/deny_ingress_annotations.js",
+			ObjectFile: "features/ingress_bad.json",
+			Errors: field.ErrorList{
+				{
+					Type:     field.ErrorTypeInvalid,
+					BadValue: "th_;_is_abad_url//\\",
+					Field:    "metadata.annotations[ingress.kubernetes.io/app-root]",
+					Detail:   "invalid user input, should match: /^((https?)://)?([w|W]{3}.)+[a-zA-Z0-9-.]{3,}.[a-zA-Z]{2,}(.[a-zA-Z]{2,})?$/",
+				},
+				{
+					Type:     field.ErrorTypeInvalid,
+					BadValue: "4MM",
+					Field:    "metadata.annotations[ingress.kubernetes.io/client-body-buffer-size]",
+					Detail:   "invalid user input, should match: /^[0-9]*[mkg]$/",
+				},
+				{
+					Type:     field.ErrorTypeInvalid,
+					BadValue: "4k0",
+					Field:    "metadata.annotations[ingress.kubernetes.io/limit-connections]",
+					Detail:   "invalid user input, should match: /^[0-9]*$/",
+				},
+				{
+					Type:     field.ErrorTypeInvalid,
+					BadValue: "truedd",
+					Field:    "metadata.annotations[ingress.kubernetes.io/secure-backends]",
+					Detail:   "invalid user input, should match: /^(true|false)$/",
+				},
+			},
+		},
+		"checking the ingress passes the validation": {
+			ScriptFile: "features/deny_ingress_annotations.js",
+			ObjectFile: "features/ingress_ok.json",
+		},
 		"checking the deployment is denied without bundle": {
 			ScriptFile: "features/deny_no_bundle.js",
 			ObjectFile: "features/deployment_without_bundle.json",
