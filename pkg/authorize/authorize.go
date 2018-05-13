@@ -26,7 +26,6 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/kubecertmanager"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/namespaces"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/scripts"
-	"github.com/UKHomeOffice/policy-admission/pkg/authorize/securitycontext"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/services"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/tolerations"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/values"
@@ -56,8 +55,6 @@ func newAuthorizer(name, path string) (api.Authorize, error) {
 		return namespaces.NewFromFile(path)
 	case scripts.Name:
 		return scripts.NewFromFile(path)
-	case securitycontext.Name:
-		return securitycontext.NewFromFile(path)
 	case services.Name:
 		return services.NewFromFile(path)
 	case tolerations.Name:

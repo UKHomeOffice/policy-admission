@@ -25,11 +25,11 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
 	"github.com/patrickmn/go-cache"
+	log "github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
-
-	"github.com/tidwall/gjson"
 )
 
 // authorizer is used to wrap the interaction with the psp runtime
@@ -51,22 +51,36 @@ func (c *authorizer) validateObject(matches []*Match, object metav1.Object) fiel
 	var errs field.ErrorList
 
 	// @step: decode the content into json
-	decoded, err := json.Marshal(object)
+	decoded, err := json.Marshal(&object)
 	if err != nil {
 		return append(errs, field.InternalError(field.NewPath(""), fmt.Errorf("unable decode object: %s", err)))
 	}
+	log.WithFields(log.Fields{
+		"name":      object.GetName(),
+		"namespace": object.GetNamespace(),
+		"object":    decoded,
+	}).Debug("checking the object against matches")
 
 	// @step: iterate the matches and apply the filter is required
-	for _, x := range matches {
+	for i, x := range matches {
 		// @check if the match should ignored for this namespace
 		if utils.Contained(object.GetNamespace(), x.Namespaces) {
 			continue
 		}
+		log.WithFields(log.Fields{
+			"index":      i,
+			"key-filter": x.KeyFilter,
+			"path":       x.Path,
+		}).Debug("checking the values in the content")
 
 		// @step: attempt to find the value
 		result := gjson.GetBytes(decoded, x.Path)
 
 		if !result.Exists() {
+			log.WithFields(log.Fields{
+				"path": x.Path,
+			}).Debug("found no values in this object")
+
 			if x.Required {
 				return append(errs, field.Required(field.NewPath(x.Path), "value is missing"))
 			}
@@ -93,6 +107,11 @@ func (c *authorizer) validateValue(path *field.Path, v gjson.Result, m *Match, e
 	if v.IsObject() {
 		// @step: iterate the keys, filter if required and match against the match
 		for key, result := range v.Map() {
+			log.WithFields(log.Fields{
+				"key":    key,
+				"filter": m.KeyFilter,
+			}).Debug("checking against the map key")
+
 			if key != m.KeyFilter {
 				continue
 			}
@@ -107,9 +126,9 @@ func (c *authorizer) validateValue(path *field.Path, v gjson.Result, m *Match, e
 	// @step: the value is not an array or a map we need to convert to string and check the value
 	filter, found := filters[m.Value]
 	if !found {
-		// @note: this has already been validated so it's cool not to check the error
 		filter, _ = regexp.Compile(m.Value)
 	}
+
 	if !filter.MatchString(v.String()) {
 		*errs = append(*errs, field.Invalid(path, v.String(), fmt.Sprintf("invalid user input, must match %s", filter.String())))
 	}
@@ -165,4 +184,20 @@ func NewFromFile(path string) (api.Authorize, error) {
 	}
 
 	return New(cfg)
+}
+
+// marshal converts the object for us
+func marshal(o interface{}) ([]byte, error) {
+	data := make(map[string]interface{}, 0)
+
+	encoded, err := json.Marshal(o)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	if err := json.Unmarshal(encoded, &data); err != nil {
+		return []byte{}, err
+	}
+
+	return json.Marshal(data)
 }

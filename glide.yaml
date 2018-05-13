@@ -19,11 +19,6 @@ import:
   subpackages:
   - kubernetes
   - rest
-- package: k8s.io/kubernetes
-  subpackages:
-  - pkg/api
-  - pkg/apis/extensions
-  - pkg/security/podsecuritypolicy
 - package: github.com/dgrijalva/jwt-go
 - package: github.com/prometheus/client_golang
   subpackages:

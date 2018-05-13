@@ -83,39 +83,6 @@ $ kubectl annotate namespace \
 mynamespace ingress-admission.acp.homeoffice.gov.uk/domains="hostname.domain.com,*.wild.domain.com"
 ```
 
-#### **Pod Security Policies / Security Context**
-
-Due to an issue in the current code base whereby if a user has RBAC access to multiple policies a random one will be chosen those authorizer reuses the kubernetes codebase but fixes the issue. The configuration for the authorizer is;
-
-```go
-// Config the security policies configuration
-type Config struct {
-	// Defaul is the name of the default policy to user
-	Default string `yaml:"default"`
-	// IgnoreNamespaces is a collection of namespace to bypass enforcement
-	IgnoreNamespaces []string `yaml:"ignored-namespaces"`
-	// Policies is a list of pod security policies which are available
-	Policies map[string]extensions.PodSecurityPolicySpec `yaml:"policies"`
-	// NamespaceMapping is a predefined list of namespace to policy mapping
-	NamespaceMapping map[string]string `yaml:"namespace-mapping"`
-}
-```
-
-An example of a default and privileged policy can be found [here](https://github.com/UKHomeOffice/policy-admission/blob/master/pkg/authorize/securitycontext/config_test.yml).
-
-Note, unlike in the kubernetes PSP the selection is performed via RBAC in this authorizer you have a default policy, a predefined mapping for namespace if specified and you can also use namespace annotation to selectively choose the policy.
-
-```YAML
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: test
-  annotations:
-    policy-admission.acp.homeoffice.gov.uk/securitycontext: privileged
-```
-
-The authorizer reuses the kubernetes codebase to validate the pod security policy.
-
 #### **Images**
 
 This is authorizer providers a mechanism to control which docker repositories pods are permitted to reference. Again the formula is similar to the rest where by you have a default policy defined in the configuration and then permitted to customize at a namespace level via annotation.

@@ -25,11 +25,10 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/api/core/v1"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
-	core "k8s.io/kubernetes/pkg/apis/core"
 )
 
 type serviceCheck struct {
@@ -113,8 +112,8 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]serviceCheck)
 	}
 }
 
-func newTestNamespace() *v1.Namespace {
-	return &v1.Namespace{
+func newTestNamespace() *core.Namespace {
+	return &core.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "test",
 			Annotations: make(map[string]string, 0),

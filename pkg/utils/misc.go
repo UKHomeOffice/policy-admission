@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/patrickmn/go-cache"
-	"k8s.io/api/core/v1"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -62,7 +62,7 @@ func NewHTTPServer(listen, cert, key string) (*http.Server, error) {
 }
 
 // GetCachedNamespace is responsible for retrieving the namespace via the api
-func GetCachedNamespace(client kubernetes.Interface, mcache *cache.Cache, name string) (*v1.Namespace, error) {
+func GetCachedNamespace(client kubernetes.Interface, mcache *cache.Cache, name string) (*core.Namespace, error) {
 	key := fmt.Sprintf("ns:%s", name)
 	cached, err := GetCachedResource(client, mcache, key, time.Duration(5*time.Second), time.Duration(3*time.Minute),
 		func(client kubernetes.Interface, keyname string) (interface{}, error) {
@@ -76,7 +76,7 @@ func GetCachedNamespace(client kubernetes.Interface, mcache *cache.Cache, name s
 	if err != nil {
 		return nil, err
 	}
-	namespace := cached.(*v1.Namespace)
+	namespace := cached.(*core.Namespace)
 
 	return namespace, nil
 }
@@ -93,7 +93,7 @@ func GetCachedResource(client kubernetes.Interface, ca *cache.Cache, key string,
 
 	tm := time.Now()
 	defer cacheLatencyMetric.Observe(time.Since(tm).Seconds())
-	
+
 	// @step: else we need to grab the resource method
 	errorCh := make(chan error, 0)
 	doneCh := make(chan interface{}, 0)

@@ -17,7 +17,7 @@ limitations under the License.
 package services
 
 import (
-	core "k8s.io/kubernetes/pkg/apis/core"
+	core "k8s.io/api/core/v1"
 )
 
 const (

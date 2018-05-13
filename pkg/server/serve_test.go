@@ -20,12 +20,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/UKHomeOffice/policy-admission/pkg/authorize/securitycontext"
-
 	admission "k8s.io/api/admission/v1beta1"
-	"k8s.io/api/core/v1"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	core "k8s.io/kubernetes/pkg/apis/core"
 )
 
 var (
@@ -37,207 +34,49 @@ func TestHealthHandler(t *testing.T) {
 	requests := []request{
 		{URI: "/health", ExpectedCode: http.StatusOK},
 	}
-	newTestAdmissionWithSecurityContext().runTests(t, requests)
+	newTestAdmissionWithImagesContext().runTests(t, requests)
 }
 
 func TestAdmitHandlerBad(t *testing.T) {
 	requests := []request{
 		{URI: "/", Method: http.MethodPost, Body: "bad", ExpectedCode: http.StatusBadRequest},
 	}
-	newTestAdmissionWithSecurityContext().runTests(t, requests)
+	newTestAdmissionWithImagesContext().runTests(t, requests)
 }
 
 func TestAdmitHandlerChecks(t *testing.T) {
 	requests := []request{
 		{
-			// ensure a default pod can get through
+			// ensure an images inside the registry is permitted
 			Pod: &core.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "test"},
 				Spec: core.PodSpec{
 					Containers: []core.Container{
-						{Name: "test", Image: "nginx", SecurityContext: &core.SecurityContext{Privileged: &isFalse, RunAsNonRoot: &isTrue}},
+						{Name: "test", Image: "docker.io/nginx:latest"},
 					},
-					SecurityContext: &core.PodSecurityContext{},
 				},
 			},
 			ExpectedStatus: &admission.AdmissionResponse{Allowed: true},
 		},
 		{
-			// ensure a host network is denied
-			Pod: &core.Pod{
-				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "test"},
-				Spec:       core.PodSpec{SecurityContext: &core.PodSecurityContext{HostNetwork: true}},
-			},
-			ExpectedStatus: &admission.AdmissionResponse{
-				Result: &metav1.Status{
-					Code:    http.StatusForbidden,
-					Message: "spec.securityContext.hostNetwork=true : Host network is not allowed to be used",
-					Reason:  metav1.StatusReasonForbidden,
-					Status:  metav1.StatusFailure,
-				},
-			},
-		},
-		{
-			// ensure a host network is allow for kube-system
-			Pod: &core.Pod{
-				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "kube-system"},
-				Spec:       core.PodSpec{SecurityContext: &core.PodSecurityContext{HostNetwork: true}},
-			},
-			ExpectedStatus: &admission.AdmissionResponse{Allowed: true},
-		},
-		{
-			// ensure a when namespace not there, default to default policy
-			Pod: &core.Pod{
-				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "not-there"},
-				Spec:       core.PodSpec{SecurityContext: &core.PodSecurityContext{HostNetwork: true}},
-			},
-			ExpectedStatus: &admission.AdmissionResponse{
-				Result: &metav1.Status{
-					Code:    http.StatusForbidden,
-					Message: `not-there=<nil> : namespaces "not-there" not found`,
-					Reason:  metav1.StatusReasonForbidden,
-					Status:  metav1.StatusFailure,
-				},
-			},
-		},
-		{
-			// ensure a host volume is deny
-			Pod: &core.Pod{
-				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "test"},
-				Spec: core.PodSpec{
-					SecurityContext: &core.PodSecurityContext{},
-					Volumes: []core.Volume{
-						{
-							Name:         "deny_me",
-							VolumeSource: core.VolumeSource{HostPath: &core.HostPathVolumeSource{Path: "/"}},
-						},
-					},
-				},
-			},
-			ExpectedStatus: &admission.AdmissionResponse{
-				Result: &metav1.Status{
-					Code:    http.StatusForbidden,
-					Message: "spec.volumes[0]=hostPath : hostPath volumes are not allowed to be used",
-					Reason:  metav1.StatusReasonForbidden,
-					Status:  metav1.StatusFailure,
-				},
-			},
-		},
-		{
-			// ensure a container cannot run with privs
+			// ensure a pod outside of the regustry is denied
 			Pod: &core.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "test"},
 				Spec: core.PodSpec{
 					Containers: []core.Container{
-						{Name: "test", Image: "nginx", SecurityContext: &core.SecurityContext{Privileged: &isTrue, RunAsNonRoot: &isTrue}},
+						{Name: "test", Image: "nginx:latest"},
 					},
-					SecurityContext: &core.PodSecurityContext{},
 				},
 			},
 			ExpectedStatus: &admission.AdmissionResponse{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
-					Message: "spec.containers[0].privileged=true : Privileged containers are not allowed",
-					Reason:  metav1.StatusReasonForbidden,
-					Status:  metav1.StatusFailure,
-				},
-			},
-		},
-		{
-			// ensure a container can run in kube-system
-			Pod: &core.Pod{
-				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "kube-system"},
-				Spec: core.PodSpec{
-					Containers: []core.Container{
-						{Name: "test", Image: "nginx", SecurityContext: &core.SecurityContext{Privileged: &isTrue, RunAsNonRoot: &isTrue}},
-					},
-					SecurityContext: &core.PodSecurityContext{},
-				},
-			},
-			ExpectedStatus: &admission.AdmissionResponse{Allowed: true},
-		},
-		{
-			// ensure a container cannot run without run-as-nonroot
-			Pod: &core.Pod{
-				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "test"},
-				Spec: core.PodSpec{
-					Containers: []core.Container{
-						{Name: "test", Image: "nginx", SecurityContext: &core.SecurityContext{Privileged: &isFalse}},
-					},
-					SecurityContext: &core.PodSecurityContext{},
-				},
-			},
-			ExpectedStatus: &admission.AdmissionResponse{
-				Result: &metav1.Status{
-					Code:    http.StatusForbidden,
-					Message: "spec.containers[0].securityContext.runAsNonRoot=false : must be true,spec.containers[0].securityContext.runAsNonRoot=false : must run as nonroot",
+					Message: "spec.containers[0].image=nginx:latest : image: nginx:latest denied by policy",
 					Reason:  metav1.StatusReasonForbidden,
 					Status:  metav1.StatusFailure,
 				},
 			},
 		},
 	}
-	newTestAdmissionWithSecurityContext().runTests(t, requests)
-}
-
-func TestAdmitHandlerNamespaceIgnored(t *testing.T) {
-	requests := []request{
-		{
-			// ensure a when namespace is ignored it allowed through
-			Pod: &core.Pod{
-				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "ignored"},
-				Spec:       core.PodSpec{SecurityContext: &core.PodSecurityContext{HostNetwork: true}},
-			},
-			ExpectedStatus: &admission.AdmissionResponse{Allowed: true},
-		},
-	}
-	newTestAdmissionWithSecurityContext().runTests(t, requests)
-}
-
-func TestAdmitHandlerWithOutNamespaceAnnotation(t *testing.T) {
-	c := newTestAdmissionWithSecurityContext()
-	c.service.client.CoreV1().Namespaces().Create(&v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{Name: "default"},
-	})
-
-	requests := []request{
-		{
-			// ensure a when namespace not there, default to default policy
-			Pod: &core.Pod{
-				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"},
-				Spec:       core.PodSpec{SecurityContext: &core.PodSecurityContext{HostNetwork: true}},
-			},
-			ExpectedStatus: &admission.AdmissionResponse{
-				Result: &metav1.Status{
-					Code:    http.StatusForbidden,
-					Message: "spec.securityContext.hostNetwork=true : Host network is not allowed to be used",
-					Reason:  metav1.StatusReasonForbidden,
-					Status:  metav1.StatusFailure,
-				},
-			},
-		},
-	}
-	c.runTests(t, requests)
-}
-
-func TestAdmitHandlerWithNamespaceAnnotation(t *testing.T) {
-	c := newTestAdmissionWithSecurityContext()
-	c.service.client.CoreV1().Namespaces().Create(&v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        "default",
-			Annotations: map[string]string{securitycontext.Annotation: "privileged"},
-		},
-	})
-
-	requests := []request{
-		{
-			// ensure a when namespace not there, default to default policy
-			Pod: &core.Pod{
-				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "default"},
-				Spec:       core.PodSpec{SecurityContext: &core.PodSecurityContext{HostNetwork: true}},
-			},
-			ExpectedStatus: &admission.AdmissionResponse{Allowed: true},
-		},
-	}
-	c.runTests(t, requests)
+	newTestAdmissionWithImagesContext().runTests(t, requests)
 }

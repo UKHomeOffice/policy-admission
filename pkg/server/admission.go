@@ -33,11 +33,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	admission "k8s.io/api/admission/v1beta1"
-	v1 "k8s.io/api/core/v1"
+	core "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	core "k8s.io/kubernetes/pkg/apis/core"
-	extensions "k8s.io/kubernetes/pkg/apis/extensions"
 )
 
 func init() {
@@ -213,10 +212,12 @@ func (c *Admission) getResourceForReview(kind string, review *admission.Admissio
 	var object metav1.Object
 
 	switch kind {
+	case api.FilterDeployments:
+		object = &extensions.Deployment{}
 	case api.FilterIngresses:
 		object = &extensions.Ingress{}
 	case api.FilterNamespace:
-		object = &v1.Namespace{}
+		object = &core.Namespace{}
 	case api.FilterPods:
 		object = &core.Pod{}
 	case api.FilterServices:
@@ -254,6 +255,10 @@ func (c *Admission) Start() error {
 
 // New creates and returns a new admission Admission
 func New(config *Config, providers []api.Authorize) (*Admission, error) {
+	if config.Verbose {
+		log.SetLevel(log.DebugLevel)
+	}
+
 	if len(providers) <= 0 {
 		return nil, errors.New("no authorizers defined")
 	}

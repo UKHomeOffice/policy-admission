@@ -26,7 +26,7 @@ import (
 )
 
 func TestMetrics(t *testing.T) {
-	s := newTestAdmissionWithSecurityContext()
+	s := newTestAdmissionWithImagesContext()
 	resp, err := http.Get(s.server.URL + "/metrics")
 	require.NoError(t, err)
 	require.NotNil(t, resp)

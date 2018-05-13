@@ -23,10 +23,10 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
-	extensions "k8s.io/kubernetes/pkg/apis/extensions"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 )

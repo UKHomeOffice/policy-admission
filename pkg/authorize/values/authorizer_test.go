@@ -25,7 +25,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/api/core/v1"
+	core "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -99,6 +99,48 @@ func TestValuesAuthorizer(t *testing.T) {
 				},
 			},
 		},
+		/*
+			"check the ingress internal regexes work": {
+				Config: &Config{
+					Matches: []*Match{
+						{
+							KeyFilter: "ingress.kubernetes.io/proxy-read-timeout",
+							Path:      "metadata.annotations",
+							Value:     ":integer:",
+						},
+						{
+							KeyFilter: "ingress.kubernetes.io/enable-something",
+							Path:      "metadata.annotations",
+							Value:     ":boolean:",
+						},
+					},
+				},
+				Object: &extensions.Ingress{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test",
+						Namespace: "test",
+						Annotations: map[string]string{
+							"ingress.kubernetes.io/proxy-read-timeout": "900s",
+							"ingress.kubernetes.io/enable-something":   "faLse",
+						},
+					},
+				},
+				Errors: field.ErrorList{
+					{
+						Field:    `metadata.annotations[ingress.kubernetes.io/proxy-read-timeout]`,
+						BadValue: "900s",
+						Type:     field.ErrorTypeInvalid,
+						Detail:   "invalid user input, must match ^[0-9]*$",
+					},
+					{
+						Field:    `metadata.annotations[ingress.kubernetes.io/enable-something]`,
+						BadValue: "faLse",
+						Type:     field.ErrorTypeInvalid,
+						Detail:   "invalid user input, must match ^(true|false)$",
+					},
+				},
+			},
+		*/
 		"check the key filter is not there there is no denial": {
 			Config: &Config{
 				Matches: []*Match{
@@ -145,7 +187,7 @@ func newTestAuthorizer(t *testing.T, config *Config) *testAuthorizer {
 
 func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]check) {
 	client := fake.NewSimpleClientset()
-	client.CoreV1().Namespaces().Create(&v1.Namespace{
+	client.CoreV1().Namespaces().Create(&core.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "test",
 			Annotations: make(map[string]string, 0),

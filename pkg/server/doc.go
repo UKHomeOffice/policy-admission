@@ -65,4 +65,6 @@ type Config struct {
 	TLSKey string `yaml:"tls-key"`
 	// TLSCert is the path to a certificate
 	TLSCert string `yaml:"tls-cert"`
+	// Verbose indicates verbose logging
+	Verbose bool `yaml:"verbose"`
 }
