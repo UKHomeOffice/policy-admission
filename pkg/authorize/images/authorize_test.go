@@ -24,11 +24,10 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/api/core/v1"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
-	core "k8s.io/kubernetes/pkg/apis/core"
 )
 
 func TestNew(t *testing.T) {
@@ -122,7 +121,7 @@ func newTestAuthorizer(t *testing.T, config *Config) *testAuthorizer {
 
 func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]imageCheck) {
 	for desc, check := range checks {
-		namespace := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "test"}}
+		namespace := &core.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "test"}}
 		if check.Whitelist != "" {
 			namespace.Annotations = map[string]string{Annotation: check.Whitelist}
 		}

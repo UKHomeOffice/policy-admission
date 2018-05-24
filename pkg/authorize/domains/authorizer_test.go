@@ -25,11 +25,11 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/api/core/v1"
+	core "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
-	extensions "k8s.io/kubernetes/pkg/apis/extensions"
 )
 
 type domainsCheck struct {
@@ -159,8 +159,8 @@ func newTestIngress(hostname string) *extensions.Ingress {
 	}
 }
 
-func newTestNamespace() *v1.Namespace {
-	return &v1.Namespace{
+func newTestNamespace() *core.Namespace {
+	return &core.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "test",
 			Annotations: make(map[string]string, 0),

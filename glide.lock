@@ -318,7 +318,6 @@ imports:
   - pkg/security/podsecuritypolicy/sysctl
   - pkg/security/podsecuritypolicy/user
   - pkg/security/podsecuritypolicy/util
-  - pkg/securitycontext
   - pkg/util/file
   - pkg/util/maps
 testImports:

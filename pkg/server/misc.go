@@ -24,7 +24,7 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
-	api "k8s.io/api/core/v1"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -56,10 +56,10 @@ func (c *Admission) getKubernetesClient() (kubernetes.Interface, error) {
 func (c *Admission) createPodDeniedEvent(client kubernetes.Interface, object metav1.Object, reason string) {
 	go func() {
 		err := utils.Retry(5, time.Second*3, func() error {
-			_, err := client.CoreV1().Events(c.config.Namespace).Create(&api.Event{
+			_, err := client.CoreV1().Events(c.config.Namespace).Create(&core.Event{
 				Message: fmt.Sprintf("Pod denied in namespace: '%s', object: '%s'", object.GetNamespace(), object.GetGenerateName()),
 				Reason:  "PodForbidden",
-				Source:  api.EventSource{Component: admissionControllerName},
+				Source:  core.EventSource{Component: admissionControllerName},
 				Type:    "Warning",
 			})
 

@@ -25,19 +25,18 @@ import (
 	"testing"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
-	"github.com/UKHomeOffice/policy-admission/pkg/authorize/securitycontext"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/UKHomeOffice/policy-admission/pkg/authorize/images"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	admission "k8s.io/api/admission/v1beta1"
 	authentication "k8s.io/api/authentication/v1"
-	"k8s.io/api/core/v1"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	core "k8s.io/kubernetes/pkg/apis/core"
 )
 
 // request defines a fake review request
@@ -59,17 +58,18 @@ type testAdmission struct {
 	service *Admission
 }
 
-func newTestSecurityContextAuthorizer() api.Authorize {
-	config := securitycontext.NewDefaultConfig()
+func newTestImagesContextAuthorizer() api.Authorize {
+	config := images.NewDefaultConfig()
+	config.ImagePolicies = []string{"docker.io/*"}
 	config.IgnoreNamespaces = []string{"kube-system", "ignored"}
 
-	a, _ := securitycontext.New(config)
+	a, _ := images.New(config)
 	return a
 }
 
-func newTestAdmissionWithSecurityContext() *testAdmission {
+func newTestAdmissionWithImagesContext() *testAdmission {
 	log.SetOutput(ioutil.Discard)
-	c, _ := New(newTestConfig(), []api.Authorize{newTestSecurityContextAuthorizer()})
+	c, _ := New(newTestConfig(), []api.Authorize{newTestImagesContextAuthorizer()})
 	c.client = newTestKubernetesClient()
 
 	return &testAdmission{server: httptest.NewServer(c.engine), service: c}
@@ -79,7 +79,7 @@ func newTestKubernetesClient() kubernetes.Interface {
 	client := fake.NewSimpleClientset()
 
 	for _, namespace := range []string{"test", "kube-system", "ignored"} {
-		client.CoreV1().Namespaces().Create(&v1.Namespace{
+		client.CoreV1().Namespaces().Create(&core.Namespace{
 			ObjectMeta: metav1.ObjectMeta{Name: namespace},
 		})
 	}

@@ -54,7 +54,7 @@ spec:
         args:
         - --tls-cert=/certs/tls.pem
         - --tls-key=/certs/tls-key.pem
-        - --authorizer=securitycontext=/config/policy.yml
+        - --authorizer=images=/config/policy.yml
         ports:
         - name: https
           containerPort: 8443

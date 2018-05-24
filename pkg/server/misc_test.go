@@ -24,26 +24,30 @@ import (
 	"github.com/stretchr/testify/require"
 
 	admission "k8s.io/api/admission/v1beta1"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	core "k8s.io/kubernetes/pkg/apis/core"
 )
 
 func TestDenialEventCreated(t *testing.T) {
-	c := newTestAdmissionWithSecurityContext()
+	c := newTestAdmissionWithImagesContext()
 	c.service.config.EnableEvents = true
 	c.service.config.Namespace = "test"
 
 	requests := []request{
 		{
-			// ensure a host network is denied
+			// ensure the image is denied
 			Pod: &core.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: "test"},
-				Spec:       core.PodSpec{SecurityContext: &core.PodSecurityContext{HostNetwork: true}},
+				Spec: core.PodSpec{
+					Containers: []core.Container{
+						{Name: "test", Image: "nginx:latest"},
+					},
+				},
 			},
 			ExpectedStatus: &admission.AdmissionResponse{
 				Result: &metav1.Status{
 					Code:    http.StatusForbidden,
-					Message: "spec.securityContext.hostNetwork=true : Host network is not allowed to be used",
+					Message: "spec.containers[0].image=nginx:latest : image: nginx:latest denied by policy",
 					Reason:  metav1.StatusReasonForbidden,
 					Status:  metav1.StatusFailure,
 				},

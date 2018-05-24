@@ -137,14 +137,14 @@ func (c *authorizer) runSafely(e *otto.Otto, script string, timeout time.Duratio
 
 // FilterOn returns the authorizer handle
 func (c *authorizer) FilterOn() api.Filter {
-	kind := c.config.Kind
-	if kind == "" {
-		kind = api.FilterAll
+	filterOn := c.config.FilterOn
+	if filterOn == "" {
+		filterOn = api.FilterAll
 	}
 
 	return api.Filter{
 		IgnoreNamespaces: c.config.IgnoreNamespaces,
-		Kind:             kind,
+		Kind:             filterOn,
 	}
 }
 
@@ -157,10 +157,6 @@ func (c *authorizer) Name() string {
 func New(config *Config) (api.Authorize, error) {
 	if config == nil {
 		config = NewDefaultConfig()
-	}
-
-	if config.Script == "" {
-
 	}
 
 	return &authorizer{config: config}, nil

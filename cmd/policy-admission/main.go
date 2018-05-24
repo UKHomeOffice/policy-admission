@@ -70,7 +70,7 @@ func main() {
 			},
 			cli.StringSliceFlag{
 				Name:  "authorizer",
-				Usage: "enable an admission authorizer, the format is name=config_path (i.e securitycontext=config.yaml)",
+				Usage: "enable an admission authorizer, the format is name=config_path (i.e images=config.yaml)",
 			},
 			cli.StringFlag{
 				Name:   "namespace",
@@ -92,6 +92,11 @@ func main() {
 				Name:   "enable-events",
 				Usage:  "indicates you wish to log kubernetes events on denials `BOOL`",
 				EnvVar: "ENABLE_EVENTS",
+			},
+			cli.BoolFlag{
+				Name:   "verbose",
+				Usage:  "indicates you wish for verbose logging `BOOL`",
+				EnvVar: "VERBOSE",
 			},
 		},
 
@@ -115,6 +120,7 @@ func main() {
 				Namespace:     cx.String("namespace"),
 				TLSCert:       cx.String("tls-cert"),
 				TLSKey:        cx.String("tls-key"),
+				Verbose:       cx.Bool("verbose"),
 			}
 
 			// @step: create the server

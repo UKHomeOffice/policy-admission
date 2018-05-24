@@ -27,7 +27,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/api/core/v1"
+	core "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -61,7 +61,7 @@ if (object.kind == "Pod") {
 }
 `,
 			},
-			Object: &v1.Pod{
+			Object: &core.Pod{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "Pod",
 				},
@@ -89,7 +89,7 @@ if (object.kind == "Pod") {
 }
 `,
 			},
-			Object: &v1.Pod{
+			Object: &core.Pod{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "Pod",
 				},
@@ -175,7 +175,7 @@ func newTestAuthorizer(t *testing.T, config *Config) *testAuthorizer {
 
 func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]check) {
 	client := fake.NewSimpleClientset()
-	client.CoreV1().Namespaces().Create(&v1.Namespace{
+	client.CoreV1().Namespaces().Create(&core.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "test",
 			Annotations: make(map[string]string, 0),
