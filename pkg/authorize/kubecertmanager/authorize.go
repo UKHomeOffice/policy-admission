@@ -21,11 +21,18 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strings"
+	"time"
+        "strings"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/route53"
+	"github.com/aws/aws-sdk-go/service/route53/route53iface"
+	"github.com/patrickmn/go-cache"
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
@@ -35,11 +42,17 @@ type resolver interface {
 	GetCNAME(string) (string, error)
 }
 
+const cachedDomains = "domains"
+
 type authorizer struct {
 	// config the configuration for the service
 	config *Config
 	// resolve is a dns resolver
 	resolve resolver
+	// client is the route53 client
+	client route53iface.Route53API
+	// cached is a small in-memory cache
+	cached *cache.Cache
 }
 
 // Admit is responsible for authorizing the ingress for kube-cert-manager
@@ -65,6 +78,12 @@ func (c *authorizer) validateIngress(ingress *extensions.Ingress) field.ErrorLis
 	// @check is this ingress has kube-cert-manager is enabled
 	if value, found := ingress.GetLabels()[label]; !found || value != class {
 		return errs
+	}
+
+	// @step: get the list of hosted domains
+	domains, err := c.hostedDomains()
+	if err != nil {
+		return append(errs, field.InternalError(field.NewPath(""), fmt.Errorf("unable to retrieve hosting domains: %s", err)))
 	}
 
 	// @check if the domain is not within the internally hosts domain
@@ -140,6 +159,35 @@ func (c *authorizer) isIngressPointed(ingress *extensions.Ingress) (field.ErrorL
 	return errs, nil
 }
 
+// hostedDomains returns a list of hosted domains
+func (c *authorizer) hostedDomains() ([]string, error) {
+	// @check is no access or secret key we default to hostdomains
+	if !c.config.IsHostingDomains() {
+		return c.config.HostedDomains, nil
+	}
+
+	// @check the we don't have the value in the cache
+	list, found := c.cached.Get(cachedDomains)
+	if found {
+		return list.([]string), nil
+	}
+
+	var domains []string
+
+	err := utils.Retry(3, 100*time.Millisecond, func() error {
+		list, err := getAWSHostedDomains(c.client)
+		if err != nil {
+			return err
+		}
+		domains = list
+		c.cached.Set(cachedDomains, domains, 10*time.Minute)
+
+		return nil
+	})
+
+	return domains, err
+}
+
 // Name is the authorizer
 func (c *authorizer) Name() string {
 	return Name
@@ -159,10 +207,20 @@ func New(config *Config) (api.Authorize, error) {
 		config = NewDefaultConfig()
 	}
 
-	return &authorizer{
+	svc := &authorizer{
 		config:  config,
 		resolve: &resolverImp{},
-	}, nil
+	}
+
+	if config.IsHostingDomains() {
+		sess := session.Must(session.NewSession(&aws.Config{
+			Credentials: credentials.NewStaticCredentials(config.AccessKey, config.SecretKey, ""),
+		}))
+
+		svc.client = route53.New(sess)
+	}
+
+	return svc, nil
 }
 
 // NewFromFile reads the configuration path and returns the authorizer
