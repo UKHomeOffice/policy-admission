@@ -201,3 +201,8 @@ func marshal(o interface{}) ([]byte, error) {
 
 	return json.Marshal(data)
 }
+
+// Stop is called when the authorizer is being shutdown
+func (c *authorizer) Stop() error {
+	return nil
+}

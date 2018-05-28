@@ -133,3 +133,8 @@ func NewFromFile(path string) (api.Authorize, error) {
 
 	return New(cfg)
 }
+
+// Stop is called when the authorizer is being shutdown
+func (c *authorizer) Stop() error {
+	return nil
+}

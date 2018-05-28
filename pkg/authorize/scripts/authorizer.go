@@ -213,3 +213,8 @@ func hasImage(filter string, containers []map[string]interface{}) (bool, error) 
 
 	return false, nil
 }
+
+// Stop is called when the authorizer is being shutdown
+func (c *authorizer) Stop() error {
+	return nil
+}
