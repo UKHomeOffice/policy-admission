@@ -78,6 +78,7 @@ func (c *authorizer) validateObject(client kubernetes.Interface, mcache *cache.C
 
 		// @step: create the runtime
 		vm := otto.New()
+		vm.Set("cache", mcache)
 		vm.Set("config", cfg)
 		vm.Set("namespace", ns)
 		vm.Set("object", obj)
@@ -102,9 +103,7 @@ func (c *authorizer) validateObject(client kubernetes.Interface, mcache *cache.C
 }
 
 // runSafely runs the script in a safe manner returning the result
-func (c *authorizer) runSafely(e *otto.Otto, script string, timeout time.Duration) error {
-	var err error
-
+func (c *authorizer) runSafely(e *otto.Otto, script string, timeout time.Duration) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			if e == errTimeout {
@@ -114,6 +113,12 @@ func (c *authorizer) runSafely(e *otto.Otto, script string, timeout time.Duratio
 			panic(e)
 		}
 	}()
+	e.Interrupt = make(chan func(), 1)
+
+	// @check for a timeout and if not there, set the default
+	if timeout <= 0 {
+		timeout = NewDefaultConfig().Timeout
+	}
 
 	// @step: setup a timer and done channel
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -124,7 +129,7 @@ func (c *authorizer) runSafely(e *otto.Otto, script string, timeout time.Duratio
 		case <-ctx.Done():
 			if err := ctx.Err(); err != nil {
 				e.Interrupt <- func() {
-					panic(err)
+					panic(errTimeout)
 				}
 			}
 		}
