@@ -89,7 +89,7 @@ func (w *wrapper) watchConfigChanges() error {
 				p, err := newAuthorizer(w.provider.Name(), w.config)
 				if err == nil {
 					configReloadErrorMetrics.WithLabelValues(w.config).Inc()
-					
+
 					log.WithFields(log.Fields{
 						"error": err.Error(),
 						"name":  w.provider.Name(),
@@ -121,5 +121,20 @@ func (w *wrapper) update(provider api.Authorize) {
 		"name": provider.Name(),
 	}).Info("updating the provide with new config")
 
+	// @step: call the stop function
+	w.provider.Stop()
+
 	w.provider = provider
+}
+
+// Stop is called when the authorizer is being shutdown
+func (w *wrapper) Stop() error {
+	if err := w.provider.Stop(); err != nil {
+		log.WithFields(log.Fields{
+			"error": err.Error(),
+			"name":  w.provider.Name(),
+		}).Error("provider shutdown with an error")
+	}
+
+	return nil
 }

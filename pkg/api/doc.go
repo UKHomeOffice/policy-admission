@@ -48,6 +48,8 @@ type Authorize interface {
 	Name() string
 	// FilterOn return the filter for the authorizer
 	FilterOn() Filter
+	// Stop is called when the authorizer is being replaced
+	Stop() error
 }
 
 // Filter defines what the authorizer is looking to filter on, or listen to

@@ -185,3 +185,8 @@ type resolverImp struct{}
 func (s *resolverImp) GetCNAME(hostname string) (string, error) {
 	return net.LookupCNAME(hostname)
 }
+
+// Stop is called when the authorizer is being shutdown
+func (c *authorizer) Stop() error {
+	return nil
+}
