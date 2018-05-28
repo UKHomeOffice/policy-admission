@@ -51,6 +51,33 @@ func TestDefaultConfig(t *testing.T) {
 	assert.NotNil(t, NewDefaultConfig())
 }
 
+func TestScriptTimeout(t *testing.T) {
+	checks := map[string]check{
+		"ensure the script is timed out": {
+			Object: &core.Pod{
+				TypeMeta: metav1.TypeMeta{
+					Kind: "Pod",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+			Config: &Config{
+				Script:  `while (true) { }`,
+				Timeout: 50 * time.Millisecond,
+			},
+			Errors: field.ErrorList{
+				{
+					Type:   field.ErrorTypeInternal,
+					Field:  "[]",
+					Detail: "operation timed out",
+				},
+			},
+		},
+	}
+	newTestAuthorizer(t, nil).runChecks(t, checks)
+}
+
 func TestScriptAuthorizer(t *testing.T) {
 	checks := map[string]check{
 		"check the action is deny when a kind is pod": {
