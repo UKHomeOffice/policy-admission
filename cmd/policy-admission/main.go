@@ -73,10 +73,30 @@ func main() {
 				Usage: "enable an admission authorizer, the format is name=config_path (i.e images=config.yaml)",
 			},
 			cli.StringFlag{
+				Name:   "cluster",
+				Usage:  "the name of the kubernetes cluster we are running `NAME`",
+				EnvVar: "KUBE_CLUSTER",
+			},
+			cli.StringFlag{
 				Name:   "namespace",
 				Usage:  "namespace to create denial events (optional as we can try and discover) `NAME`",
 				EnvVar: "KUBE_NAMESPACE",
 				Value:  "kube-admission",
+			},
+			cli.StringFlag{
+				Name:   "slack-api-token",
+				Usage:  "API token used to speak to slack messaging",
+				EnvVar: "SLACK_API_TOKEN",
+			},
+			cli.StringFlag{
+				Name:   "slack-channel",
+				Usage:  "a slack channel to send the denial events to",
+				EnvVar: "SLACK_CHANNEL",
+			},
+			cli.BoolFlag{
+				Name:   "enable-slack-events",
+				Usage:  "publishes denial events into a slack channel",
+				EnvVar: "ENABLE_SLACK",
 			},
 			cli.BoolFlag{
 				Name:   "enable-logging",
@@ -113,14 +133,18 @@ func main() {
 			}
 
 			config := &server.Config{
-				EnableEvents:  cx.Bool("enable-events"),
-				EnableMetrics: cx.Bool("enable-metrics"),
-				EnableLogging: cx.Bool("enable-logging"),
-				Listen:        cx.String("listen"),
-				Namespace:     cx.String("namespace"),
-				TLSCert:       cx.String("tls-cert"),
-				TLSKey:        cx.String("tls-key"),
-				Verbose:       cx.Bool("verbose"),
+				ClusterName:       cx.String("cluster"),
+				EnableEvents:      cx.Bool("enable-events"),
+				EnableMetrics:     cx.Bool("enable-metrics"),
+				EnableLogging:     cx.Bool("enable-logging"),
+				EnableSlackEvents: cx.Bool("enable-slack-events"),
+				Listen:            cx.String("listen"),
+				Namespace:         cx.String("namespace"),
+				SlackAPIToken:     cx.String("slack-api-token"),
+				SlackChannel:      cx.String("slack-channel"),
+				TLSCert:           cx.String("tls-cert"),
+				TLSKey:            cx.String("tls-key"),
+				Verbose:           cx.Bool("verbose"),
 			}
 
 			// @step: create the server
