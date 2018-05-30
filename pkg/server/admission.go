@@ -25,10 +25,10 @@ import (
 	"time"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
-	"github.com/UKHomeOffice/policy-admission/pkg/utils"
-	"github.com/UKHomeOffice/policy-admission/pkg/events/slack"
-	"github.com/UKHomeOffice/policy-admission/pkg/events/kube"
 	"github.com/UKHomeOffice/policy-admission/pkg/events"
+	"github.com/UKHomeOffice/policy-admission/pkg/events/kube"
+	"github.com/UKHomeOffice/policy-admission/pkg/events/slack"
+	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
@@ -36,11 +36,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	admission "k8s.io/api/admission/v1beta1"
+	apps "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/kubernetes/pkg/apis/apps"
 )
 
 func init() {
@@ -287,8 +287,8 @@ func New(config *Config, providers []api.Authorize) (*Admission, error) {
 	var evts []api.Sink
 
 	// @step: create the event sinks
-	if config.EnableSlackEvents {
-		e, err := slack.New(config.ClusterName, config.SlackAPIToken, config.SlackChannel)
+	if config.SlackWebHook != "" {
+		e, err := slack.New(config.ClusterName, config.SlackWebHook)
 		if err != nil {
 			return nil, err
 		}
@@ -303,7 +303,7 @@ func New(config *Config, providers []api.Authorize) (*Admission, error) {
 		evts = append(evts, e)
 	}
 
-	eventmgr, err := events.New(10 * time.Second, evts...)
+	eventmgr, err := events.New(10*time.Second, evts...)
 	if err != nil {
 		return nil, err
 	}

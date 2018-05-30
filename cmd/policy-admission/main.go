@@ -84,19 +84,9 @@ func main() {
 				Value:  "kube-admission",
 			},
 			cli.StringFlag{
-				Name:   "slack-api-token",
-				Usage:  "API token used to speak to slack messaging",
-				EnvVar: "SLACK_API_TOKEN",
-			},
-			cli.StringFlag{
-				Name:   "slack-channel",
-				Usage:  "a slack channel to send the denial events to",
-				EnvVar: "SLACK_CHANNEL",
-			},
-			cli.BoolFlag{
-				Name:   "enable-slack-events",
-				Usage:  "publishes denial events into a slack channel",
-				EnvVar: "ENABLE_SLACK",
+				Name:   "slack-webhook",
+				Usage:  "the slack webhook to send the events to ",
+				EnvVar: "SLACK_WEBHOOK",
 			},
 			cli.BoolFlag{
 				Name:   "enable-logging",
@@ -133,18 +123,16 @@ func main() {
 			}
 
 			config := &server.Config{
-				ClusterName:       cx.String("cluster"),
-				EnableEvents:      cx.Bool("enable-events"),
-				EnableMetrics:     cx.Bool("enable-metrics"),
-				EnableLogging:     cx.Bool("enable-logging"),
-				EnableSlackEvents: cx.Bool("enable-slack-events"),
-				Listen:            cx.String("listen"),
-				Namespace:         cx.String("namespace"),
-				SlackAPIToken:     cx.String("slack-api-token"),
-				SlackChannel:      cx.String("slack-channel"),
-				TLSCert:           cx.String("tls-cert"),
-				TLSKey:            cx.String("tls-key"),
-				Verbose:           cx.Bool("verbose"),
+				ClusterName:   cx.String("cluster"),
+				EnableEvents:  cx.Bool("enable-events"),
+				EnableMetrics: cx.Bool("enable-metrics"),
+				EnableLogging: cx.Bool("enable-logging"),
+				Listen:        cx.String("listen"),
+				Namespace:     cx.String("namespace"),
+				SlackWebHook:  cx.String("slack-webhook"),
+				TLSCert:       cx.String("tls-cert"),
+				TLSKey:        cx.String("tls-key"),
+				Verbose:       cx.Bool("verbose"),
 			}
 
 			// @step: create the server

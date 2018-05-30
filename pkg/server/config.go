@@ -16,7 +16,10 @@ limitations under the License.
 
 package server
 
-import "errors"
+import (
+	"errors"
+	"net/url"
+)
 
 // IsValid checks the configuration is valid
 func (c *Config) IsValid() error {
@@ -26,12 +29,9 @@ func (c *Config) IsValid() error {
 	}
 
 	// @check the slack curation if required
-	if c.EnableSlackEvents {
-		if c.SlackAPIToken == "" {
-			return errors.New("no slack api token")
-		}
-		if c.SlackChannel == "" {
-			return errors.New("no slack channel specified")
+	if c.SlackWebHook != "" {
+		if _, err := url.Parse(c.SlackWebHook); err != nil {
+			return err
 		}
 		if c.ClusterName == "" {
 			return errors.New("cluster name not specified")

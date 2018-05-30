@@ -17,53 +17,89 @@ limitations under the License.
 package slack
 
 import (
-	"context"
-	"fmt"
-	"strings"
+	"bytes"
+	"encoding/json"
+	"errors"
+	"io/ioutil"
+	"net"
+	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 
-	message "github.com/nlopes/slack"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var client = &http.Client{
+	Timeout: 10 * time.Second,
+	Transport: &http.Transport{
+		Dial: (&net.Dialer{
+			Timeout: 10 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout: 10 * time.Second,
+	},
+}
+
 type slackEvents struct {
-	// the slack api client
-	client *message.Client
-	// channel is the channel to send the events
-	channel string
 	// name is the name of the kubernetes cluster
 	name string
+	// webhook is the url to send the events
+	webhook string
 }
 
 // New creates and returns a slack sink
-func New(name, token, channel string) (api.Sink, error) {
-	return &slackEvents{
-		channel: channel,
-		client:  message.New(token),
-		name:    name,
-	}, nil
+func New(cluster, webhook string) (api.Sink, error) {
+	if _, err := url.Parse(webhook); err != nil {
+		return nil, err
+	}
+
+	return &slackEvents{name: cluster, webhook: webhook}, nil
 }
 
 // Send sends the event into slack
 func (s *slackEvents) Send(o metav1.Object, detail string) error {
-	params := message.PostMessageParameters{}
-	params.Channel = s.channel
-	params.Markdown = true
+	message := &messagePayload{
+		Attachments: []*attachment{
+			{
+				Color: "#8B0000",
+				Title: "Policy Admission - Denial (" + s.name + ")",
+				Fields: []*attachmentField{
+					{
+						Title: "Detail",
+						Value: detail,
+					},
+					{
+						Title: "Namespace",
+						Value: o.GetNamespace(),
+						Short: true,
+					},
+					{
+						Title: "UID",
+						Value: string(o.GetUID()),
+						Short: true,
+					},
+				},
+				TimeStamp: time.Now().Unix(),
+			},
+		},
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	encoded, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
 
-	var items []string
+	resp, err := client.Post(s.webhook, "application/json", bytes.NewReader(encoded))
+	if err != nil {
+		return err
+	}
 
-	items = append(items, "** Denial **")
-	items = append(items, fmt.Sprintf("Cluster: %s", s.name))
-	items = append(items, fmt.Sprintf("Namespace: %s", o.GetNamespace()))
-	items = append(items, fmt.Sprintf("Message: %s", detail))
-	text := strings.Join(items, "\n")
+	if resp.StatusCode != http.StatusOK {
+		status, _ := ioutil.ReadAll(resp.Body)
 
-	_, _, err := s.client.PostMessageContext(ctx, s.channel, text, params)
+		return errors.New(string(status))
+	}
 
-	return err
+	return nil
 }

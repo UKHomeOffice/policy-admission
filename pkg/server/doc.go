@@ -61,16 +61,12 @@ type Config struct {
 	EnableMetrics bool `yaml:"enable-metrics"`
 	// EnableLogging indicates we want to see the admission request
 	EnableLogging bool `yaml:"enable-logging"`
-	// EnableSlackEvents indicates we should publish denials to slack
-	EnableSlackEvents bool `yaml:"enable-slack-events"`
 	// Listen is the interface we are listening on
 	Listen string `yaml:"listen"`
 	// Namespace is the kubernetes namespace we are running in
 	Namespace string `yaml:"namespace"`
-	// SlackAPIToken is the token to speak to slack API
-	SlackAPIToken string `yaml:"slack-api-token"`
-	// SlackChannel is the channel to publish the events
-	SlackChannel string `yaml:"slack-channel"`
+	// SlackWebHook is the token to speak to slack API
+	SlackWebHook string `yaml:"slack-webhook"`
 	// TLSKey is the path to a private key
 	TLSKey string `yaml:"tls-key"`
 	// TLSCert is the path to a certificate
