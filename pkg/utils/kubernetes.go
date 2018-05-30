@@ -7,7 +7,7 @@ You may obtain a copy of the License at
 
     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable w or agreed to in writing, software
+Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
@@ -17,22 +17,16 @@ limitations under the License.
 package utils
 
 import (
-	"errors"
-	"time"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
-// Retry attempts to perform an operation for x time
-func Retry(attempts int, interval time.Duration, fn func() error) error {
-	// @step: give it a go once before jumping in
-	for i := 0; i < attempts; i++ {
-		if err := fn(); err == nil {
-			return nil
-		}
-
-		if interval > 0 {
-			time.Sleep(interval)
-		}
+// GetKubernetesClient returns a kubernetes api client for us
+func GetKubernetesClient() (kubernetes.Interface, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
 	}
 
-	return errors.New("operation failed")
+	return kubernetes.NewForConfig(config)
 }

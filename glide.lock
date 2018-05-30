@@ -1,5 +1,5 @@
-hash: 82e76a4230b0259628147dfb2202d88ccf1b94b6552d306ce918bc64a3d003e6
-updated: 2018-05-04T14:01:25.264150693+01:00
+hash: fda2e1ab7d3fa7f8f67d751620aad8900ffffdff1d85e534ee42df70b1fc50ba
+updated: 2018-05-30T14:27:22.853720996+01:00
 imports:
 - name: github.com/beorn7/perks
   version: 3ac7bf7a47d159a033b107610db8a1b6575507a4
@@ -140,7 +140,6 @@ imports:
 - name: k8s.io/api
   version: 055879e38033d1526b0fe169089a055c33fa3990
   subpackages:
-  - admission/v1alpha1
   - admission/v1beta1
   - admissionregistration/v1alpha1
   - admissionregistration/v1beta1
@@ -170,17 +169,12 @@ imports:
   - storage/v1
   - storage/v1alpha1
   - storage/v1beta1
-- name: k8s.io/apiextensions-apiserver
-  version: c0309dc58835e8fc6b11ac6eeb38741300ff85d0
-  subpackages:
-  - pkg/features
 - name: k8s.io/apimachinery
   version: 210bcde8e5a7715fe776460ca1df1a3f2738725e
   subpackages:
   - pkg/api/errors
   - pkg/api/meta
   - pkg/api/resource
-  - pkg/apis/meta/internalversion
   - pkg/apis/meta/v1
   - pkg/apis/meta/v1/unstructured
   - pkg/apis/meta/v1beta1
@@ -213,11 +207,6 @@ imports:
   - pkg/version
   - pkg/watch
   - third_party/forked/golang/reflect
-- name: k8s.io/apiserver
-  version: f4a9d31325865f18b8023622a564578f079d582b
-  subpackages:
-  - pkg/features
-  - pkg/util/feature
 - name: k8s.io/client-go
   version: 88e8ea169afa2918712ce2bc64fc1e2d11d72b12
   subpackages:
@@ -296,30 +285,6 @@ imports:
   - util/cert
   - util/flowcontrol
   - util/integer
-- name: k8s.io/kubernetes
-  version: 4685df26ddc2c0778564ed77ec974da56bd52994
-  subpackages:
-  - pkg/api
-  - pkg/apis/autoscaling
-  - pkg/apis/core
-  - pkg/apis/core/helper
-  - pkg/apis/extensions
-  - pkg/apis/networking
-  - pkg/apis/scheduling
-  - pkg/features
-  - pkg/kubelet/types
-  - pkg/security/apparmor
-  - pkg/security/podsecuritypolicy
-  - pkg/security/podsecuritypolicy/apparmor
-  - pkg/security/podsecuritypolicy/capabilities
-  - pkg/security/podsecuritypolicy/group
-  - pkg/security/podsecuritypolicy/seccomp
-  - pkg/security/podsecuritypolicy/selinux
-  - pkg/security/podsecuritypolicy/sysctl
-  - pkg/security/podsecuritypolicy/user
-  - pkg/security/podsecuritypolicy/util
-  - pkg/util/file
-  - pkg/util/maps
 testImports:
 - name: github.com/davecgh/go-spew
   version: 782f4967f2dc4564575ca782fe2d04090b5faca8

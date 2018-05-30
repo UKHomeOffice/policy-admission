@@ -23,6 +23,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+const AdmissionControllerName = "policy.homeoffice.gov.uk"
+
 var (
 	// FilterAll indicates you want to recieved all registered objects
 	FilterAll = "All"
@@ -34,11 +36,23 @@ var (
 	FilterIngresses = "Ingress"
 	// FilterNamespace is a Namespace
 	FilterNamespace = "Namespace"
+	// FilterNetworkPolicy indicates a network policy
+	FilterNetworkPolicy = "NetworkPolicy"
 	// FilterPods indicates you want to see pods
 	FilterPods = "Pod"
+	// FilterReplicaSet indicates replicasets
+	FilterReplicaSet = "ReplicaSet"
 	// FilterServices indicates we are looking at services
 	FilterServices = "Service"
+	// FilterStatefulSet indicates are filter on statefulset
+	FilterStatefulSet = "StatefulSets"
 )
+
+// Sink is the implementation for a events consumer
+type Sink interface {
+	// Send is responsible is sending messages
+	Send(metav1.Object, string) error
+}
 
 // Authorize is the interface for a authorizer
 type Authorize interface {

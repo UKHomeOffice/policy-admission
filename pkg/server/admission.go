@@ -25,6 +25,9 @@ import (
 	"time"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
+	"github.com/UKHomeOffice/policy-admission/pkg/events"
+	"github.com/UKHomeOffice/policy-admission/pkg/events/kube"
+	"github.com/UKHomeOffice/policy-admission/pkg/events/slack"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
 	"github.com/labstack/echo"
@@ -33,6 +36,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	admission "k8s.io/api/admission/v1beta1"
+	apps "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -105,10 +109,14 @@ func (c *Admission) admit(review *admission.AdmissionReview) error {
 			},
 		}
 
-		// @step: log the kubernetes event if required
-		if c.config.EnableEvents {
-			c.createPodDeniedEvent(c.client, result.Object, status.Message)
-		}
+		// @step: log the denial is required
+		go func() {
+			if err := c.events.Send(result.Object, status.Message); err != nil {
+				log.WithFields(log.Fields{
+					"error": err.Error(),
+				}).Error("failed to publish denial event")
+			}
+		}()
 
 		return nil
 	}
@@ -144,8 +152,9 @@ func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (*a
 
 	// @step: iterate the authorizers and fail on first refusal
 	for i, provider := range c.providers {
+
 		// @check if this authorizer is listening to this type
-		if provider.FilterOn().Kind != kind && provider.FilterOn().Kind != api.FilterAll {
+		if provider.FilterOn().Kind != api.FilterAll && provider.FilterOn().Kind != kind {
 			continue
 		}
 
@@ -161,13 +170,16 @@ func (c *Admission) handleAdmissionReview(review *admission.AdmissionReview) (*a
 		}
 		object.SetNamespace(review.Request.Namespace)
 
+		// @step: pass the object into the provider for authorization
 		errs := func() field.ErrorList {
 			now := time.Now()
+			// @metric record the time taken per provider
 			defer admissionAuthorizerLatencyMetric.WithLabelValues(provider.Name(), fmt.Sprintf("%d", i)).Observe(time.Since(now).Seconds())
 
 			return provider.Admit(c.client, c.resourceCache, object)
 		}()
 
+		// @check if we found any error from the provider
 		if len(errs) > 0 {
 			admissionAuthorizerActionMetric.WithLabelValues(provider.Name(), actionDenied).Inc()
 
@@ -218,10 +230,16 @@ func (c *Admission) getResourceForReview(kind string, review *admission.Admissio
 		object = &extensions.Ingress{}
 	case api.FilterNamespace:
 		object = &core.Namespace{}
+	case api.FilterNetworkPolicy:
+		object = &extensions.NetworkPolicy{}
 	case api.FilterPods:
 		object = &core.Pod{}
+	case api.FilterReplicaSet:
+		object = &extensions.ReplicaSet{}
 	case api.FilterServices:
 		object = &core.Service{}
+	case api.FilterStatefulSet:
+		object = &apps.StatefulSet{}
 	default:
 		return nil, ErrNotSupported
 	}
@@ -237,7 +255,7 @@ func (c *Admission) getResourceForReview(kind string, review *admission.Admissio
 // Start is repsonsible for starting the service up
 func (c *Admission) Start() error {
 	if c.client == nil {
-		client, err := c.getKubernetesClient()
+		client, err := utils.GetKubernetesClient()
 		if err != nil {
 			return err
 		}
@@ -258,9 +276,36 @@ func New(config *Config, providers []api.Authorize) (*Admission, error) {
 	if config.Verbose {
 		log.SetLevel(log.DebugLevel)
 	}
+	if err := config.IsValid(); err != nil {
+		return nil, err
+	}
 
 	if len(providers) <= 0 {
 		return nil, errors.New("no authorizers defined")
+	}
+
+	var evts []api.Sink
+
+	// @step: create the event sinks
+	if config.SlackWebHook != "" {
+		e, err := slack.New(config.ClusterName, config.SlackWebHook)
+		if err != nil {
+			return nil, err
+		}
+		evts = append(evts, e)
+	}
+
+	if config.EnableEvents {
+		e, err := kube.New()
+		if err != nil {
+			return nil, err
+		}
+		evts = append(evts, e)
+	}
+
+	eventmgr, err := events.New(10*time.Second, evts...)
+	if err != nil {
+		return nil, err
 	}
 
 	log.Infof("policy admission controller, listen: %s", config.Listen)
@@ -271,6 +316,7 @@ func New(config *Config, providers []api.Authorize) (*Admission, error) {
 
 	c := &Admission{
 		config:        config,
+		events:        eventmgr,
 		providers:     providers,
 		resourceCache: cache.New(1*time.Minute, 5*time.Minute),
 	}

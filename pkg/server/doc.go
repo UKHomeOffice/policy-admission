@@ -35,14 +35,16 @@ const (
 
 // Admission is the admission controller service
 type Admission struct {
-	// providers is a collection of pod authorizers
-	providers []api.Authorize
 	// client the kubernetes client
 	client kubernetes.Interface
 	// config is the configuration for the service
 	config *Config
 	// engine is the http router
 	engine *echo.Echo
+	// events is the events interface
+	events api.Sink
+	// providers is a collection of pod authorizers
+	providers []api.Authorize
 	// server is the http server
 	server *http.Server
 	// cache is local cache for resources
@@ -51,6 +53,8 @@ type Admission struct {
 
 // Config is the configuration for the service
 type Config struct {
+	// ClusterName is the name of the cluster
+	ClusterName string `yaml:"cluster-name"`
 	// EnableEvents indicates we should enable event logging
 	EnableEvents bool `yaml:"enable-events"`
 	// EnableMetrics indicates we should expose the metrics
@@ -61,6 +65,8 @@ type Config struct {
 	Listen string `yaml:"listen"`
 	// Namespace is the kubernetes namespace we are running in
 	Namespace string `yaml:"namespace"`
+	// SlackWebHook is the token to speak to slack API
+	SlackWebHook string `yaml:"slack-webhook"`
 	// TLSKey is the path to a private key
 	TLSKey string `yaml:"tls-key"`
 	// TLSCert is the path to a certificate
