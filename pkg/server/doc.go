@@ -18,6 +18,7 @@ package server
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 
@@ -65,6 +66,8 @@ type Config struct {
 	Listen string `yaml:"listen"`
 	// Namespace is the kubernetes namespace we are running in
 	Namespace string `yaml:"namespace"`
+	// RateLimit the duration to the rate limiting
+	RateLimit time.Duration `yaml:"rate-limit"`
 	// SlackWebHook is the token to speak to slack API
 	SlackWebHook string `yaml:"slack-webhook"`
 	// TLSKey is the path to a private key
