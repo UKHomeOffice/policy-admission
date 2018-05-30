@@ -4,7 +4,7 @@ workspace:
 
 pipeline:
   tests:
-    image: golang:1.10
+    image: golang:1.10.2
     commands:
       - make test
       - make static
@@ -12,7 +12,7 @@ pipeline:
       event: [pull_request, push, tag]
 
   latest:
-    image: docker:1.13
+    image: docker:17.09.0-ce
     environment:
       - DOCKER_HOST=tcp://172.17.0.1:2375
     secrets: [docker_password]
@@ -25,7 +25,7 @@ pipeline:
       branch: master
 
   tagged:
-    image: docker:1.13
+    image: docker:17.09.0-ce
     environment:
       - DOCKER_HOST=tcp://172.17.0.1:2375
     secrets: [docker_password]

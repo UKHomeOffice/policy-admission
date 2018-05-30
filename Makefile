@@ -65,8 +65,14 @@ authors:
 	@echo "--> Updating the AUTHORS"
 	git log --format='%aN <%aE>' | sort -u > AUTHORS
 
+dep-install:
+	@echo "--> Retrieving dependencies"
+	@dep ensure
+
 deps:
 	@echo "--> Installing build dependencies"
+	@go get -u github.com/golang/dep/cmd/dep
+	$(MAKE) dep-install
 
 vet:
 	@echo "--> Running go vet $(VETARGS) ."
@@ -103,15 +109,10 @@ cover:
 	@echo "--> Running go cover"
 	@go test -cover $(PACKAGES)
 
-glide-install:
-	@echo "--> Installing dependencies"
-	@go get github.com/Masterminds/glide
-	@glide install --strip-vendor
-
 test: deps
 	@echo "--> Running the tests"
 	  @if [ ! -d "vendor" ]; then \
-    make glide-install; \
+    make dep-install; \
   fi
 	@go test -v ${PACKAGES}
 	@$(MAKE) vet
