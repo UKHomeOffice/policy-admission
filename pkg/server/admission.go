@@ -303,7 +303,7 @@ func New(config *Config, providers []api.Authorize) (*Admission, error) {
 		evts = append(evts, e)
 	}
 
-	eventmgr, err := events.New(10*time.Second, evts...)
+	eventmgr, err := events.New(config.RateLimit, evts...)
 	if err != nil {
 		return nil, err
 	}

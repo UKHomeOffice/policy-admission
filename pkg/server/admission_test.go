@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/images"
@@ -88,7 +89,7 @@ func newTestKubernetesClient() kubernetes.Interface {
 }
 
 func newTestConfig() *Config {
-	return &Config{Listen: "127.0.0.1:8080", EnableMetrics: true}
+	return &Config{Listen: "127.0.0.1:8080", EnableMetrics: true, RateLimit: 5 * time.Second}
 }
 
 // runTests performs a series of tests on the service

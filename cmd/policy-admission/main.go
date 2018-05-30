@@ -23,6 +23,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize"
@@ -103,6 +104,12 @@ func main() {
 				Usage:  "indicates you wish to log kubernetes events on denials `BOOL`",
 				EnvVar: "ENABLE_EVENTS",
 			},
+			cli.DurationFlag{
+				Name:   "rate-limit",
+				Usage:  "the time duration to attempt to wrap up duplicate events `DURATION`",
+				EnvVar: "RATE_LIMIT",
+				Value:  60 * time.Second,
+			},
 			cli.BoolFlag{
 				Name:   "verbose",
 				Usage:  "indicates you wish for verbose logging `BOOL`",
@@ -129,6 +136,7 @@ func main() {
 				EnableLogging: cx.Bool("enable-logging"),
 				Listen:        cx.String("listen"),
 				Namespace:     cx.String("namespace"),
+				RateLimit:     cx.Duration("rate-limit"),
 				SlackWebHook:  cx.String("slack-webhook"),
 				TLSCert:       cx.String("tls-cert"),
 				TLSKey:        cx.String("tls-key"),
