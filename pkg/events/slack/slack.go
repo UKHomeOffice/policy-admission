@@ -60,14 +60,21 @@ func New(cluster, webhook string) (api.Sink, error) {
 // Send sends the event into slack
 func (s *slackEvents) Send(o metav1.Object, detail string) error {
 	message := &messagePayload{
+		Username: "policy-admission",
 		Attachments: []*attachment{
 			{
-				Color: "#8B0000",
-				Title: "Policy Admission - Denial (" + s.name + ")",
+				Color:     "danger",
+				TimeStamp: time.Now().Unix(),
 				Fields: []*attachmentField{
 					{
 						Title: "Detail",
 						Value: detail,
+						Short: false,
+					},
+					{
+						Title: "Name",
+						Value: o.GetName(),
+						Short: true,
 					},
 					{
 						Title: "Namespace",
@@ -75,12 +82,11 @@ func (s *slackEvents) Send(o metav1.Object, detail string) error {
 						Short: true,
 					},
 					{
-						Title: "UID",
-						Value: string(o.GetUID()),
+						Title: "Cluster",
+						Value: s.name,
 						Short: true,
 					},
 				},
-				TimeStamp: time.Now().Unix(),
 			},
 		},
 	}
