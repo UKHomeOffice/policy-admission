@@ -23,7 +23,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const AdmissionControllerName = "policy.homeoffice.gov.uk"
+// AdmissionControllerName is the name admission controller
+const AdmissionControllerName = "policy-admission"
 
 var (
 	// FilterAll indicates you want to recieved all registered objects
@@ -42,6 +43,8 @@ var (
 	FilterPods = "Pod"
 	// FilterReplicaSet indicates replicasets
 	FilterReplicaSet = "ReplicaSet"
+	// FilterReplicationControllers indicates we listen to rc
+	FilterReplicationControllers = "ReplicationControllers"
 	// FilterServices indicates we are looking at services
 	FilterServices = "Service"
 	// FilterStatefulSet indicates are filter on statefulset
