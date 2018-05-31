@@ -27,8 +27,6 @@ import (
 	"time"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var client = &http.Client{
@@ -58,8 +56,9 @@ func New(cluster, webhook string) (api.Sink, error) {
 }
 
 // Send sends the event into slack
-func (s *slackEvents) Send(o metav1.Object, detail string) error {
+func (s *slackEvents) Send(event *api.Event) error {
 	message := &messagePayload{
+		Text:     "The attached resource has denied",
 		Username: "policy-admission",
 		Attachments: []*attachment{
 			{
@@ -68,22 +67,32 @@ func (s *slackEvents) Send(o metav1.Object, detail string) error {
 				Fields: []*attachmentField{
 					{
 						Title: "Detail",
-						Value: detail,
+						Value: event.Detail,
 						Short: false,
-					},
-					{
-						Title: "Name",
-						Value: o.GetName(),
-						Short: true,
-					},
-					{
-						Title: "Namespace",
-						Value: o.GetNamespace(),
-						Short: true,
 					},
 					{
 						Title: "Cluster",
 						Value: s.name,
+						Short: true,
+					},
+					{
+						Title: "Kind",
+						Value: event.Review.Kind.Kind,
+						Short: true,
+					},
+					{
+						Title: "Name",
+						Value: event.Object.GetName(),
+						Short: true,
+					},
+					{
+						Title: "Namespace",
+						Value: event.Object.GetNamespace(),
+						Short: true,
+					},
+					{
+						Title: "Username",
+						Value: event.Review.UserInfo.Username,
 						Short: true,
 					},
 				},

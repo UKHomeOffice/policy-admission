@@ -28,7 +28,6 @@ import (
 
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // manager is a state of the events
@@ -52,19 +51,30 @@ func New(limit time.Duration, sinks ...api.Sink) (api.Sink, error) {
 }
 
 // Send is responsible for sending the messages into sink
-func (m *manager) Send(object metav1.Object, detail string) error {
+func (m *manager) Send(event *api.Event) error {
+	// @check we have everything
+	if event.Detail == "" {
+		return errors.New("no detail message")
+	}
+	if event.Review == nil {
+		return errors.New("no admission review")
+	}
+	if event.Object == nil {
+		return errors.New("no object")
+	}
+
 	// @step: generate a key used to index duplicate events .. object uid and message
-	key := fmt.Sprintf("%s/%s", object.GetUID(), detail)
+	key := fmt.Sprintf("%s/%s", event.Object.GetUID(), event.Detail)
 	encoded := sha.Sum256([]byte(key))
 	hash := base64.RawStdEncoding.EncodeToString(encoded[:])
 
 	// @step: filter out duplicate messages
 	if _, found := m.rated.Get(hash); found {
 		log.WithFields(log.Fields{
-			"detail":    detail,
-			"name":      object.GetName(),
-			"namespace": object.GetNamespace(),
-			"uid":       object.GetUID(),
+			"detail":    event.Detail,
+			"name":      event.Object.GetName(),
+			"namespace": event.Object.GetNamespace(),
+			"uid":       event.Object.GetUID(),
 		}).Debug("found duplicate message, ignoring")
 
 		return nil
@@ -76,7 +86,7 @@ func (m *manager) Send(object metav1.Object, detail string) error {
 	// @step: interate the sinks and send the messages
 	for _, x := range m.sinks {
 		err := utils.Retry(5, time.Second*3, func() error {
-			return x.Send(object, detail)
+			return x.Send(event)
 		})
 		if err != nil {
 			return err
