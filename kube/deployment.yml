@@ -3,11 +3,11 @@ kind: Deployment
 metadata:
   name: policy-admission
 spec:
-  replicas: 3
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 2
+      maxUnavailable: 1
   template:
     metadata:
       labels:
@@ -16,45 +16,74 @@ spec:
         build: "https://github.com/UKHomeOffice/policy-admission"
         owner: "devops@digital.homeoffice.gov.uk"
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: name
+                  operator: In
+                  values:
+                  - policy-admission
+              topologyKey: kubernetes.io/hostname
       serviceAccount: policy-admission
       securityContext:
         fsGroup: 1000
-      containers:
+        runAsNonRoot: trye
+      volumes:
+      - name: bundle
+        configMap:
+          name: bundle
+      - name: config
+        configMap:
+          name: policy-admission
+      - name: certs
+        emptyDir: {}
+      initContainers:
       - name: certs
         image: quay.io/ukhomeofficedigital/cfssl-sidekick:v0.0.6
         securityContext:
-          runAsNonRoot: true
+          readOnlyRootFilesystem: true
         resources:
           limits:
             cpu: 100m
             memory: 60Mi
         args:
+        - --certs=/certs
         - --domain=policy-admission.${KUBE_NAMESPACE}.svc.cluster.local
+        - --domain=localhost
         - --domain=127.0.0.1
+        - --expiry=8760h
+        - --onetime=true
         env:
         - name: KUBE_NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
         volumeMounts:
-        - name: certs
-          mountPath: /certs
         - name: bundle
           mountPath: /etc/ssl/certs
           readOnly: true
+        - name: certs
+          mountPath: /certs
+      containers:
       - name: controller
-        image: quay.io/ukhomeofficedigital/policy-admission:v0.0.3
+        image: quay.io/ukhomeofficedigital/policy-admission:latest
         imagePullPolicy: Always
-        securityContext:
-          runAsNonRoot: true
         resources:
           limits:
             cpu: 200m
             memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
         args:
+        - --authorizer=images=/config/policy.yml
+        - --listen=:8443
         - --tls-cert=/certs/tls.pem
         - --tls-key=/certs/tls-key.pem
-        - --authorizer=images=/config/policy.yml
         ports:
         - name: https
           containerPort: 8443
@@ -69,21 +98,12 @@ spec:
             port: https
             scheme: HTTPS
         volumeMounts:
+        - name: bundle
+          mountPath: /etc/ssl/certs
+          readOnly: true
         - name: certs
           mountPath: /certs
           readOnly: true
         - name: config
           mountPath: /config
           readOnly: true
-        - name: bundle
-          mountPath: /etc/ssl/certs
-          readOnly: true
-      volumes:
-      - name: config
-        configMap:
-          name: policy-admission
-      - name: bundle
-        configMap:
-          name: bundle
-      - name: certs
-        emptyDir: {}
