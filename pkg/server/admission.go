@@ -79,15 +79,29 @@ type admissionResult struct {
 func (c *Admission) admit(review *admission.AdmissionReview) error {
 	result, err := c.handleAdmissionReview(review)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"error":     err.Error(),
-			"namespace": review.Request.Namespace,
-		}).Errorf("unable to handle admission review")
-
 		admissionErrorMetric.Inc()
 
-		return err
+		if err != ErrNotSupported {
+			log.WithFields(log.Fields{
+				"error":     err.Error(),
+				"name":      review.Request.Name,
+				"namespace": review.Request.Namespace,
+			}).Errorf("unable to handle admission review")
+
+			return err
+		}
+
+		// @else the object was not supported, we permit through but raise a warning
+		log.WithFields(log.Fields{
+			"group":     review.Request.Kind.Group,
+			"kind":      review.Request.Kind.Kind,
+			"name":      review.Request.Name,
+			"namespace": review.Request.Namespace,
+		}).Warn("object kind is not suppported")
+
+		result.Allowed = true
 	}
+
 	if !result.Allowed {
 		status := result.Status
 		// @step: increment the counter
@@ -95,8 +109,12 @@ func (c *Admission) admit(review *admission.AdmissionReview) error {
 
 		log.WithFields(log.Fields{
 			"error":     status.Message,
-			"name":      result.Object.GetGenerateName(),
-			"namespace": result.Object.GetNamespace(),
+			"group":     review.Request.Kind.Group,
+			"kind":      review.Request.Kind.Kind,
+			"name":      review.Request.Name,
+			"namespace": review.Request.Namespace,
+			"uid":       review.Request.UserInfo.UID,
+			"user":      review.Request.UserInfo.Username,
 		}).Warn("authorization for object execution denied")
 
 		review.Response = &admission.AdmissionResponse{
@@ -114,7 +132,9 @@ func (c *Admission) admit(review *admission.AdmissionReview) error {
 			if err := c.events.Send(result.Object, status.Message); err != nil {
 				log.WithFields(log.Fields{
 					"error": err.Error(),
-				}).Error("failed to publish denial event")
+				}).Error("failed to publish event")
+
+				admissionErrorMetric.Inc()
 			}
 		}()
 
@@ -125,9 +145,13 @@ func (c *Admission) admit(review *admission.AdmissionReview) error {
 	review.Response = &admission.AdmissionResponse{Allowed: true}
 
 	log.WithFields(log.Fields{
-		"name":      result.Object.GetName(),
-		"namespace": result.Object.GetNamespace(),
-	}).Info("object is authorized for execution")
+		"group":     review.Request.Kind.Group,
+		"kind":      review.Request.Kind.Kind,
+		"name":      review.Request.Name,
+		"namespace": review.Request.Namespace,
+		"user":      review.Request.UserInfo.Username,
+		"uid":       review.Request.UserInfo.UID,
+	}).Info("object has been authorized for execution")
 
 	return nil
 }
