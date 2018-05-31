@@ -20,8 +20,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/UKHomeOffice/policy-admission/pkg/api"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	admission "k8s.io/api/admission/v1beta1"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -30,7 +33,7 @@ type fakeSink struct {
 	count int
 }
 
-func (f *fakeSink) Send(metav1.Object, string) error {
+func (f *fakeSink) Send(*api.Event) error {
 	f.count = f.count + 1
 
 	return nil
@@ -40,10 +43,14 @@ func newFakeSink() *fakeSink {
 	return &fakeSink{}
 }
 
-func newFakePod() *core.Pod {
-	return &core.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			UID: "test",
+func newFakeEvent() *api.Event {
+	return &api.Event{
+		Detail: "test message",
+		Review: &admission.AdmissionRequest{},
+		Object: &core.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				UID: "test",
+			},
 		},
 	}
 }
@@ -59,30 +66,28 @@ func TestSend(t *testing.T) {
 	m, err := New(1*time.Second, f)
 	require.NoError(t, err)
 
-	m.Send(&core.Pod{}, "a test message")
+	m.Send(newFakeEvent())
 	assert.Equal(t, 1, f.count)
 }
 
 func TestDuplicateEvent(t *testing.T) {
-	pod := newFakePod()
 	f := newFakeSink()
 	m, err := New(10*time.Second, f)
 	require.NoError(t, err)
-	m.Send(pod, "a test message")
-	m.Send(pod, "a test message")
+	m.Send(newFakeEvent())
+	m.Send(newFakeEvent())
 	assert.Equal(t, 1, f.count)
 }
 
 func TestDuplicateAllowed(t *testing.T) {
-	pod := newFakePod()
 	f := newFakeSink()
 	m, err := New(5*time.Millisecond, f)
 	require.NoError(t, err)
 
-	m.Send(pod, "a test message")
-	m.Send(pod, "a test message")
+	m.Send(newFakeEvent())
+	m.Send(newFakeEvent())
 	assert.Equal(t, 1, f.count)
 	time.Sleep(50 * time.Millisecond)
-	m.Send(pod, "a test message")
+	m.Send(newFakeEvent())
 	assert.Equal(t, 2, f.count)
 }
