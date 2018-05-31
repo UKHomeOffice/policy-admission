@@ -236,6 +236,8 @@ func (c *Admission) getResourceForReview(kind string, review *admission.Admissio
 		object = &core.Pod{}
 	case api.FilterReplicaSet:
 		object = &extensions.ReplicaSet{}
+	case api.FilterReplicationControllers:
+		object = &core.ReplicationController{}
 	case api.FilterServices:
 		object = &core.Service{}
 	case api.FilterStatefulSet:
