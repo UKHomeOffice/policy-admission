@@ -129,10 +129,13 @@ func (c *Admission) admit(review *admission.AdmissionReview) error {
 
 		// @step: log the denial is required
 		go func() {
-			if err := c.events.Send(result.Object, status.Message); err != nil {
-				log.WithFields(log.Fields{
-					"error": err.Error(),
-				}).Error("failed to publish event")
+			if err := c.events.Send(&api.Event{
+				Detail: status.Message,
+				Object: result.Object,
+				Review: review.Request,
+			}); err != nil {
+
+				log.WithFields(log.Fields{"error": err.Error()}).Error("failed to publish event")
 
 				admissionErrorMetric.Inc()
 			}

@@ -18,6 +18,7 @@ package api
 
 import (
 	"github.com/patrickmn/go-cache"
+	admission "k8s.io/api/admission/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
@@ -54,7 +55,19 @@ var (
 // Sink is the implementation for a events consumer
 type Sink interface {
 	// Send is responsible is sending messages
-	Send(metav1.Object, string) error
+	Send(*Event) error
+}
+
+// Event is a denial event
+type Event struct {
+	// Detail is the detail about the error
+	Detail string
+	// Provider is the provider whom denied it
+	Provider string
+	// Object is the decoded object
+	Object metav1.Object
+	// Review is a reference to the review
+	Review *admission.AdmissionRequest
 }
 
 // Authorize is the interface for a authorizer
