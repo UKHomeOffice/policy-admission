@@ -55,6 +55,11 @@ var (
 	FilterStatefulSet = "StatefulSet"
 )
 
+const (
+	// NamespaceCacheKey is the cache key
+	NamespaceCacheKey = "namespace"
+)
+
 // Sink is the implementation for a events consumer
 type Sink interface {
 	// Send is responsible is sending messages

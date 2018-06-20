@@ -19,21 +19,28 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
+	"math/rand"
 	"net/http"
 	"path/filepath"
 	"regexp"
 	"time"
 
+	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/patrickmn/go-cache"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 var (
 	// ErrOperationTimeout indicated the operation timed out
 	ErrOperationTimeout = errors.New("operation timeout")
+	// letterBytes used for a random string
+	letterBytes = "abcdefghijklmnopqrstuvwxyz0123456789"
 )
 
 // CacheFn is a cache return function, assuming the resource in not found in the cache
@@ -68,6 +75,16 @@ func NewHTTPServer(listen, cert, key string) (*http.Server, error) {
 	return server, nil
 }
 
+// Random returns a random string
+func Random(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Int63()%int64(len(letterBytes))]
+	}
+
+	return string(b)
+}
+
 // TRX is a request unique id
 type TRX string
 
@@ -89,10 +106,14 @@ func SetTRX(c context.Context, id string) context.Context {
 	return context.WithValue(c, TRXName, id)
 }
 
+// GetCacheKey returns a join key
+func GetCacheKey(names ...string) string {
+	return filepath.Join(names...)
+}
+
 // GetCachedNamespace is responsible for retrieving the namespace via the api
 func GetCachedNamespace(client kubernetes.Interface, mcache *cache.Cache, name string) (*core.Namespace, error) {
-	key := fmt.Sprintf("ns:%s", name)
-	cached, err := GetCachedResource(client, mcache, key, time.Duration(5*time.Second), time.Duration(3*time.Minute),
+	cached, err := GetCachedResource(client, mcache, GetCacheKey(api.NamespaceCacheKey, name), time.Duration(1*time.Minute), time.Duration(10*time.Minute),
 		func(client kubernetes.Interface, keyname string) (interface{}, error) {
 			resource, err := client.CoreV1().Namespaces().Get(name, metav1.GetOptions{})
 			if err != nil {

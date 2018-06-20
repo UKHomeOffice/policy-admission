@@ -30,8 +30,7 @@ import (
 // admitHandler is responsible for handling the authorization request
 func (c *Admission) admitHandler(ctx echo.Context) error {
 	review := &admission.AdmissionReview{}
-	uid := ctx.Request().Header.Get(echo.HeaderXRequestID)
-	trx := utils.SetTRX(ctx.Request().Context(), uid)
+	trx := utils.SetTRX(ctx.Request().Context(), utils.Random(12))
 
 	// @step: we need to unmarshal the review
 	if err := ctx.Bind(review); err != nil {

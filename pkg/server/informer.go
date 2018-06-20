@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	gocache "github.com/patrickmn/go-cache"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 )
@@ -36,11 +37,16 @@ type resourceInformer struct {
 
 // newResourceInformer returns a new namespace controller
 func newResourceInformer(informer cache.SharedIndexInformer, prefix string, store *gocache.Cache) (*resourceInformer, error) {
-	return &resourceInformer{
+	svc := &resourceInformer{
 		informer: informer,
 		prefix:   prefix,
 		store:    store,
-	}, nil
+	}
+	if err := svc.start(context.Background()); err != nil {
+		return nil, err
+	}
+
+	return svc, nil
 }
 
 // start is responsible for running the informing and updating the caches
@@ -52,24 +58,29 @@ func (c *resourceInformer) start(ctx context.Context) error {
 			if err == nil {
 				c.store.Set(c.keyName(key), obj, 0)
 			}
+			log.WithFields(log.Fields{"key": key}).Debug("adding resource to cache")
 		},
 		DeleteFunc: func(obj interface{}) {
 			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 			if err == nil {
-				c.store.Set(c.keyName(key), obj, 0)
+				c.store.Delete(c.keyName(key))
 			}
+			log.WithFields(log.Fields{"key": key}).Debug("deleting the resource from cache")
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(newObj)
 			if err == nil {
 				c.store.Set(c.keyName(key), newObj, 0)
 			}
+			log.WithFields(log.Fields{"key": key}).Debug("updating the resource in cache")
 		},
 	})
 
 	// @step: start the shared index informer
 	stopCh := make(chan struct{}, 0)
 	go c.informer.Run(stopCh)
+
+	log.Infof("synchronizing the cache for resources under prefix: %s", c.prefix)
 
 	if !cache.WaitForCacheSync(stopCh, c.informer.HasSynced) {
 		runtime.HandleError(fmt.Errorf("controller timed out waiting for caches to sync"))
