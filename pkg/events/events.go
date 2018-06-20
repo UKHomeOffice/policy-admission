@@ -20,7 +20,7 @@ import (
 	sha "crypto/sha256"
 	"encoding/base64"
 	"errors"
-	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
@@ -64,7 +64,7 @@ func (m *manager) Send(event *api.Event) error {
 	}
 
 	// @step: generate a key used to index duplicate events .. object uid and message
-	key := fmt.Sprintf("%s/%s", event.Object.GetUID(), event.Detail)
+	key := filepath.Join(event.Object.GetNamespace(), event.Object.GetName(), event.Detail)
 	encoded := sha.Sum256([]byte(key))
 	hash := base64.RawStdEncoding.EncodeToString(encoded[:])
 
