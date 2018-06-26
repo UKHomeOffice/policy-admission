@@ -49,7 +49,7 @@ var (
 	// FilterServices indicates we are looking at services
 	FilterServices = "Service"
 	// FilterStatefulSet indicates are filter on statefulset
-	FilterStatefulSet = "StatefulSets"
+	FilterStatefulSet = "StatefulSet"
 )
 
 // Sink is the implementation for a events consumer
