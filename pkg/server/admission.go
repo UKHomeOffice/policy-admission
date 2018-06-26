@@ -99,7 +99,11 @@ func (c *Admission) admit(review *admission.AdmissionReview) error {
 			"namespace": review.Request.Namespace,
 		}).Warn("object kind is not suppported")
 
-		result.Allowed = true
+		result = &admissionResult{
+			Allowed: true,
+			Object:  nil,
+			Status:  &metav1.Status{},
+		}
 	}
 
 	if !result.Allowed {
