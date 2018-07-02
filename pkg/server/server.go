@@ -32,6 +32,8 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
+	core "k8s.io/client-go/informers/core/v1"
+	indexers "k8s.io/client-go/tools/cache"
 )
 
 func init() {
@@ -39,10 +41,6 @@ func init() {
 }
 
 var (
-	// namespaceExpiry is the default time we will expiry resources
-	namespaceExpiry = time.Duration(60 * time.Second)
-	// resourceTimeout is the default time we willing to wait for resources from api
-	resourceTimeout = time.Duration(2 * time.Second)
 	// ErrNotSupported indicated we do not support this object type
 	ErrNotSupported = errors.New("unsupported object type")
 )
@@ -57,9 +55,21 @@ func (c *Admission) Start() error {
 		c.client = client
 	}
 
+	// @step: create a resource informers to fill the cache
+	go func() {
+		inform := core.NewNamespaceInformer(c.client, 60*time.Second, indexers.Indexers{})
+		_, err := newResourceInformer(inform, api.NamespaceCacheKey, c.resourceCache)
+
+		log.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Fatal("unable to create the http server")
+	}()
+
 	go func() {
 		if err := c.engine.StartServer(c.server); err != nil {
-			log.WithFields(log.Fields{"error": err.Error()}).Fatal("unable to create the http server")
+			log.WithFields(log.Fields{
+				"error": err.Error(),
+			}).Fatal("unable to create the http server")
 		}
 	}()
 
@@ -113,15 +123,14 @@ func New(config *Config, providers []api.Authorize) (*Admission, error) {
 		config:        config,
 		events:        eventmgr,
 		providers:     providers,
-		resourceCache: cache.New(1*time.Minute, 5*time.Minute),
+		resourceCache: cache.New(1*time.Minute, 10*time.Minute),
 	}
 
 	// @step: create the http router
 	engine := echo.New()
 	engine.Use(middleware.Recover())
-	engine.Use(middleware.RequestID())
 	if c.config.EnableLogging {
-		engine.Use(c.admissionMiddlerware())
+		engine.Use(c.requestLoggingMiddlerware())
 	}
 	engine.HideBanner = true
 	engine.POST("/", c.admitHandler)

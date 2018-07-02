@@ -24,8 +24,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// admissionMiddlerware is middleware to log the admission requests
-func (c *Admission) admissionMiddlerware() echo.MiddlewareFunc {
+// requestLoggingMiddlerware is middleware to log the admission requests
+func (c *Admission) requestLoggingMiddlerware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			request := ctx.Request()
