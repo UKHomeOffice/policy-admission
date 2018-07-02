@@ -12,7 +12,7 @@ USAGE:
     [global options] command [command options] [arguments...]
 
 VERSION:
-   v0.0.18 (git+sha: 83e2063)
+   v0.0.23 (git+sha: 201138f-dirty)
 
 AUTHOR:
    Rohith Jayawardene <gambol99@gmail.com>
@@ -21,20 +21,21 @@ COMMANDS:
      help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --listen INTERFACE     network interface the service should listen on INTERFACE (default: ":8443") [$LISTEN]
-   --tls-cert PATH        path to a file containing the tls certificate PATH [$TLS_CERT]
-   --tls-key PATH         path to a file containing the tls key PATH [$TLS_KEY]
-   --authorizer value     enable an admission authorizer, the format is name=config_path (i.e images=config.yaml)
-   --cluster NAME         the name of the kubernetes cluster we are running NAME [$KUBE_CLUSTER]
-   --namespace NAME       namespace to create denial events (optional as we can try and discover) NAME (default: "kube-admission") [$KUBE_NAMESPACE]
-   --slack-webhook value  the slack webhook to send the events to [$SLACK_WEBHOOK]
-   --enable-logging BOOL  indicates you wish to log the admission requests for debugging BOOL [$ENABLE_LOGGING]
-   --enable-metrics BOOL  indicates you wish to expose the prometheus metrics BOOL [$ENABLE_METRICS]
-   --enable-events BOOL   indicates you wish to log kubernetes events on denials BOOL [$ENABLE_EVENTS]
-   --rate-limit DURATION  the time duration to attempt to wrap up duplicate events DURATION (default: 1m0s) [$RATE_LIMIT]
-   --verbose BOOL         indicates you wish for verbose logging BOOL [$VERBOSE]
-   --help, -h             show help
-   --version, -v          print the version
+   --listen INTERFACE      network interface the service should listen on INTERFACE (default: ":8443") [$LISTEN]
+   --tls-cert PATH         path to a file containing the tls certificate PATH [$TLS_CERT]
+   --tls-key PATH          path to a file containing the tls key PATH [$TLS_KEY]
+   --authorizer value      enable an admission authorizer, the format is name=config_path (i.e images=config.yaml)
+   --cluster NAME          the name of the kubernetes cluster we are running NAME [$KUBE_CLUSTER]
+   --namespace NAME        namespace to create denial events (optional as we can try and discover) NAME (default: "kube-admission") [$KUBE_NAMESPACE]
+   --slack-webhook URL     slack webhook to send the events to URL [$SLACK_WEBHOOK]
+   --controller-name NAME  controller name also used as prefix in annotations NAME (default: "policy-admission.acp.homeoffice.gov.uk") [$CONTROLLER_NAME]
+   --enable-logging BOOL   indicates you wish to log the admission requests for debugging BOOL [$ENABLE_LOGGING]
+   --enable-metrics BOOL   indicates you wish to expose the prometheus metrics BOOL [$ENABLE_METRICS]
+   --enable-events BOOL    indicates you wish to log kubernetes events on denials BOOL [$ENABLE_EVENTS]
+   --rate-limit DURATION   the time duration to attempt to wrap up duplicate events DURATION (default: 1m30s) [$RATE_LIMIT]
+   --verbose BOOL          indicates you wish for verbose logging BOOL [$VERBOSE]
+   --help, -h              show help
+   --version, -v           print the version
 ```
 
 Note, the configuration is auto-reloaded, so you can chunk the configuration files in the [configmap](https://kubernetes.io/docs/tasks/configure-pod-container/configmap/) and on changes the authorizer will automatically pick on the changes.
@@ -212,4 +213,8 @@ metadata:
         }
       ]
 ```
+
+#### **Controller Name**
+
+You can alter the controller prefix by using the `--controller-name` option which sets the prefix for the annotations across all the authorizers.
 

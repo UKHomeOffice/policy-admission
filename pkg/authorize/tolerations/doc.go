@@ -23,8 +23,6 @@ import (
 const (
 	// Name is the name of the authorizer
 	Name = "tolerations"
-	// Annotation is the namespace annotation used to control taints whitelist
-	Annotation = "policy-admission.acp.homeoffice.gov.uk/" + Name
 )
 
 // Config is the configuration for the taint authorizer

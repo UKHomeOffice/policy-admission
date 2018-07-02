@@ -17,6 +17,7 @@ limitations under the License.
 package services
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -30,6 +31,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+const testAnnotation = "policy-admission.acp.homeoffice.gov.uk"
 
 type serviceCheck struct {
 	Errors    field.ErrorList
@@ -99,16 +102,23 @@ func newTestAuthorizer(t *testing.T, config *Config) *testAuthorizer {
 
 func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]serviceCheck) {
 	for desc, check := range checks {
+		cx := newTestContext()
 		namespace := newTestNamespace()
 		if check.Whitelist != "" {
-			namespace.Annotations[Annotation] = check.Whitelist
+			namespace.Annotations[cx.Annotation(Name)] = check.Whitelist
 		}
+		cx.Client.CoreV1().Namespaces().Create(namespace)
+		cx.Object = check.Service
 
-		client := fake.NewSimpleClientset()
-		client.CoreV1().Namespaces().Create(namespace)
-		mcache := cache.New(1*time.Minute, 1*time.Minute)
+		assert.Equal(t, check.Errors, c.svc.Admit(context.TODO(), cx), "case: '%s' result not as expected", desc)
+	}
+}
 
-		assert.Equal(t, check.Errors, c.svc.Admit(client, mcache, check.Service), "case: '%s' result not as expected", desc)
+func newTestContext() *api.Context {
+	return &api.Context{
+		Cache:  cache.New(1*time.Minute, 1*time.Minute),
+		Client: fake.NewSimpleClientset(),
+		Prefix: "policy-admission.acp.homeoffice.gov.uk",
 	}
 }
 

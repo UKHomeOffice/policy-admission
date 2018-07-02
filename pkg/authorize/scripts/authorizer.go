@@ -28,11 +28,11 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
 	"github.com/patrickmn/go-cache"
+	"github.com/robertkrimen/otto"
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
-
-	"github.com/robertkrimen/otto"
 )
 
 var errTimeout = errors.New("operation timed out")
@@ -44,14 +44,14 @@ type authorizer struct {
 }
 
 // Admit is responsible for authorizing the pod
-func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
+func (c *authorizer) Admit(ctx context.Context, cx *api.Context) field.ErrorList {
 	var errs field.ErrorList
 
-	return append(errs, c.validateObject(client, mcache, object)...)
+	return append(errs, c.validateObject(ctx, cx.Client, cx.Cache, cx.Object)...)
 }
 
 // validateObject is responsible for validating the values on an object
-func (c *authorizer) validateObject(client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
+func (c *authorizer) validateObject(ctx context.Context, client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
 	var errs field.ErrorList
 
 	// @step: get namespace for this object
@@ -71,19 +71,25 @@ func (c *authorizer) validateObject(client kubernetes.Interface, mcache *cache.C
 		if err != nil {
 			return err
 		}
-		cfg, err := marshal(c.config)
-		if err != nil {
-			return err
-		}
 
 		// @step: create the runtime
 		vm := otto.New()
+		for k, v := range c.config.Options {
+			vm.Set(k, v)
+		}
 		vm.Set("cache", mcache)
-		vm.Set("config", cfg)
 		vm.Set("namespace", ns)
 		vm.Set("object", obj)
 
 		// @step: setup some functions
+		vm.Set("log", func(call otto.FunctionCall) otto.Value {
+			log.WithFields(log.Fields{
+				"scripts": c.config.Name,
+			}).Info(call.Argument(0).String())
+
+			return otto.Value{}
+		})
+
 		vm.Set("deny", func(call otto.FunctionCall) otto.Value {
 			path := call.Argument(0).String()
 			message := call.Argument(1).String()
@@ -93,7 +99,7 @@ func (c *authorizer) validateObject(client kubernetes.Interface, mcache *cache.C
 			return otto.Value{}
 		})
 
-		return c.runSafely(vm, c.config.Script, c.config.Timeout)
+		return c.runSafely(ctx, vm, c.config.Script, c.config.Timeout)
 	}()
 	if err != nil {
 		return append(errs, field.InternalError(field.NewPath(""), err))
@@ -103,7 +109,7 @@ func (c *authorizer) validateObject(client kubernetes.Interface, mcache *cache.C
 }
 
 // runSafely runs the script in a safe manner returning the result
-func (c *authorizer) runSafely(e *otto.Otto, script string, timeout time.Duration) (err error) {
+func (c *authorizer) runSafely(ctx context.Context, e *otto.Otto, script string, timeout time.Duration) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			if e == errTimeout {
@@ -121,7 +127,7 @@ func (c *authorizer) runSafely(e *otto.Otto, script string, timeout time.Duratio
 	}
 
 	// @step: setup a timer and done channel
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	go func() {

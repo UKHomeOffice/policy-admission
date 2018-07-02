@@ -17,6 +17,7 @@ limitations under the License.
 package kubecertmanager
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -25,11 +26,8 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
-	"github.com/patrickmn/go-cache"
 	extensions "k8s.io/api/extensions/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/kubernetes"
 )
 
 // resolver is purely wrapped for conveience of testing
@@ -45,10 +43,10 @@ type authorizer struct {
 }
 
 // Admit is responsible for authorizing the ingress for kube-cert-manager
-func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
+func (c *authorizer) Admit(_ context.Context, cx *api.Context) field.ErrorList {
 	var errs field.ErrorList
 
-	ingress, ok := object.(*extensions.Ingress)
+	ingress, ok := cx.Object.(*extensions.Ingress)
 	if !ok {
 		return append(errs, field.InternalError(field.NewPath("object"), errors.New("invalid object, expected Ingress")))
 	}

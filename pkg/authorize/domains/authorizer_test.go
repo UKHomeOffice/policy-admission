@@ -17,6 +17,7 @@ limitations under the License.
 package domains
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -130,16 +131,16 @@ func newTestAuthorizer(t *testing.T, config *Config) *testAuthorizer {
 
 func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]domainsCheck) {
 	for desc, check := range checks {
+		ctx := newTestContext()
 		namespace := newTestNamespace()
 		if check.Whitelist != "" {
-			namespace.Annotations[Annotation] = check.Whitelist
+			namespace.Annotations[ctx.Annotation(Name)] = check.Whitelist
 		}
-		client := fake.NewSimpleClientset()
-		client.CoreV1().Namespaces().Create(namespace)
-		mcache := cache.New(1*time.Minute, 1*time.Minute)
+		ctx.Client.CoreV1().Namespaces().Create(namespace)
 
-		ingress := newTestIngress(check.Hostname)
-		assert.Equal(t, check.Errors, c.svc.Admit(client, mcache, ingress), "case: '%s' result not as expected", desc)
+		ctx.Object = newTestIngress(check.Hostname)
+
+		assert.Equal(t, check.Errors, c.svc.Admit(context.TODO(), ctx), "case: '%s' result not as expected", desc)
 	}
 }
 
@@ -156,6 +157,14 @@ func newTestIngress(hostname string) *extensions.Ingress {
 			Rules: []extensions.IngressRule{{Host: hostname}},
 		},
 		Status: extensions.IngressStatus{},
+	}
+}
+
+func newTestContext() *api.Context {
+	return &api.Context{
+		Cache:  cache.New(1*time.Minute, 1*time.Minute),
+		Client: fake.NewSimpleClientset(),
+		Prefix: "policy-admission.acp.homeoffice.gov.uk",
 	}
 }
 

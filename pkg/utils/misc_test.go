@@ -17,6 +17,7 @@ limitations under the License.
 package utils
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -25,6 +26,13 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestGetTRX(t *testing.T) {
+	testID := "test"
+	ctx := context.Background()
+	ctx = SetTRX(ctx, testID)
+	assert.Equal(t, testID, GetTRX(ctx))
+}
 
 func TestGetCachedResourceTimeout(t *testing.T) {
 	c := newTestCache()

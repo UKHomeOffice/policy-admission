@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Home Office All rights reserved.
+Copyright 2018 Home Office All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,13 +18,13 @@ package authorize
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/domains"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/imagelist"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/images"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/kubecertmanager"
-	"github.com/UKHomeOffice/policy-admission/pkg/authorize/namespaces"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/scripts"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/services"
 	"github.com/UKHomeOffice/policy-admission/pkg/authorize/tolerations"
@@ -51,8 +51,8 @@ func newAuthorizer(name, path string) (api.Authorize, error) {
 		return imagelist.NewFromFile(path)
 	case kubecertmanager.Name:
 		return kubecertmanager.NewFromFile(path)
-	case namespaces.Name:
-		return namespaces.NewFromFile(path)
+	case "namespaces":
+		return nil, fmt.Errorf("namespaces has been deprecated in favour of scripts or values")
 	case scripts.Name:
 		return scripts.NewFromFile(path)
 	case services.Name:

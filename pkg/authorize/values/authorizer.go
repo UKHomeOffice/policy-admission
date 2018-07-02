@@ -17,6 +17,7 @@ limitations under the License.
 package values
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -24,12 +25,10 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
-	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/kubernetes"
 )
 
 // authorizer is used to wrap the interaction with the psp runtime
@@ -39,11 +38,11 @@ type authorizer struct {
 }
 
 // Admit is responsible for authorizing the pod
-func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
+func (c *authorizer) Admit(_ context.Context, cx *api.Context) field.ErrorList {
 	var errs field.ErrorList
 
 	// @step: validate the object
-	return append(errs, c.validateObject(c.config.Matches, object)...)
+	return append(errs, c.validateObject(c.config.Matches, cx.Object)...)
 }
 
 // validateObject is responsible for validating the values on an object

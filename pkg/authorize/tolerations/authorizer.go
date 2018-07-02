@@ -17,6 +17,7 @@ limitations under the License.
 package tolerations
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,11 +25,8 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
-	"github.com/patrickmn/go-cache"
 	core "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/kubernetes"
 )
 
 // authorizer is responsible for validating the tolerations
@@ -38,11 +36,11 @@ type authorizer struct {
 }
 
 // authorize is responsible for authorizer a taint
-func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
+func (c *authorizer) Admit(_ context.Context, cx *api.Context) field.ErrorList {
 	var errs field.ErrorList
 	var whitelist []core.Toleration
 
-	pod, ok := object.(*core.Pod)
+	pod, ok := cx.Object.(*core.Pod)
 	if !ok {
 		return append(errs, field.InternalError(field.NewPath("object"), errors.New("invalid object, expected pod")))
 	}
@@ -56,13 +54,13 @@ func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, obj
 	whitelist = append(whitelist, c.config.DefaultWhitelist...)
 
 	// @step: get namespace for this object
-	namespace, err := utils.GetCachedNamespace(client, mcache, pod.Namespace)
+	namespace, err := utils.GetCachedNamespace(cx.Client, cx.Cache, pod.Namespace)
 	if err != nil {
 		return append(errs, field.InternalError(field.NewPath("namespace"), err))
 	}
 
 	// @check if the namespace has a white list on toleration allowed and that we have a list
-	annotation, found := namespace.GetAnnotations()[Annotation]
+	annotation, found := namespace.GetAnnotations()[cx.Annotation(Name)]
 	if found {
 		var override []core.Toleration
 		if err := json.Unmarshal([]byte(annotation), &override); err != nil {

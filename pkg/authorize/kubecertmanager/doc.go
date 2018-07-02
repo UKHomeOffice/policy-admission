@@ -19,8 +19,6 @@ package kubecertmanager
 const (
 	// Name is the name of the authorizer
 	Name = "kubecertmanager"
-	// Annotation provides a namespace specific override for image policy
-	Annotation = "policy-admission.acp.homeoffice.gov.uk/" + Name
 )
 
 // Config is the configuration for the service

@@ -17,6 +17,9 @@ limitations under the License.
 package api
 
 import (
+	"context"
+	"path/filepath"
+
 	"github.com/patrickmn/go-cache"
 	admission "k8s.io/api/admission/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,10 +73,30 @@ type Event struct {
 	Review *admission.AdmissionRequest
 }
 
+// Context is context of the request
+type Context struct {
+	// Cache is a resource cache
+	Cache *cache.Cache
+	// Client is a kubernetes client
+	Client kubernetes.Interface
+	// Object is the object we are validating
+	Object metav1.Object
+	// Prefix the controller prefix
+	Prefix string
+}
+
+// Annotation returns a annotation name
+func (c *Context) Annotation(names ...string) string {
+	paths := []string{c.Prefix}
+	paths = append(paths, names...)
+
+	return filepath.Join(paths...)
+}
+
 // Authorize is the interface for a authorizer
 type Authorize interface {
 	// Admit makes a decision on the pod acceptance
-	Admit(kubernetes.Interface, *cache.Cache, metav1.Object) field.ErrorList
+	Admit(context.Context, *Context) field.ErrorList
 	// Name is the name of the authorizer
 	Name() string
 	// FilterOn return the filter for the authorizer

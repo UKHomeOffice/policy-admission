@@ -16,10 +16,12 @@ limitations under the License.
 package utils
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"regexp"
 	"time"
 
@@ -36,6 +38,11 @@ var (
 
 // CacheFn is a cache return function, assuming the resource in not found in the cache
 type CacheFn func(kubernetes.Interface, string) (interface{}, error)
+
+// GetAnnotation returns a formatted annotation
+func GetAnnotation(names ...string) string {
+	return filepath.Join(names...)
+}
 
 // NewHTTPServer creates and returns a new http server
 func NewHTTPServer(listen, cert, key string) (*http.Server, error) {
@@ -59,6 +66,27 @@ func NewHTTPServer(listen, cert, key string) (*http.Server, error) {
 	}
 
 	return server, nil
+}
+
+// TRX is a request unique id
+type TRX string
+
+// TRXName is the name in the context
+const TRXName TRX = "uuid"
+
+// GetTRX returns the request transaction id from the context
+func GetTRX(c context.Context) string {
+	v := c.Value(TRXName)
+	if v == nil {
+		return ""
+	}
+
+	return v.(string)
+}
+
+// SetTRX sets the uuid of the context
+func SetTRX(c context.Context, id string) context.Context {
+	return context.WithValue(c, TRXName, id)
 }
 
 // GetCachedNamespace is responsible for retrieving the namespace via the api

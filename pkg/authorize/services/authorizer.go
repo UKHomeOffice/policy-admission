@@ -17,18 +17,15 @@ limitations under the License.
 package services
 
 import (
+	"context"
 	"errors"
-	"reflect"
 	"strings"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
-	"github.com/patrickmn/go-cache"
 	core "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/kubernetes"
 )
 
 // authorizer is used to wrap the interactions
@@ -37,26 +34,25 @@ type authorizer struct {
 }
 
 // Admit is responsible for authorizing the service
-func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
+func (c *authorizer) Admit(_ context.Context, cx *api.Context) field.ErrorList {
 	var errs field.ErrorList
 
-	svc, ok := object.(*core.Service)
+	svc, ok := cx.Object.(*core.Service)
 	if !ok {
-		return append(errs, field.InternalError(field.NewPath("object").Child(reflect.TypeOf(object).String()),
-			errors.New("invalid object, expected service")))
+		return append(errs, field.InternalError(field.NewPath("object"), errors.New("invalid object, expected Service")))
 	}
 
 	var whitelist []string
 	whitelist = append(whitelist, c.config.Whitelist...)
 
 	// @step: get namespace for this object
-	namespace, err := utils.GetCachedNamespace(client, mcache, svc.Namespace)
+	namespace, err := utils.GetCachedNamespace(cx.Client, cx.Cache, svc.Namespace)
 	if err != nil {
 		return append(errs, field.InternalError(field.NewPath("namespace"), err))
 	}
 
 	// @check if the namespace has a whitelist
-	annotation, found := namespace.GetAnnotations()[Annotation]
+	annotation, found := namespace.GetAnnotations()[cx.Annotation(Name)]
 	if found {
 		whitelist = append(whitelist, strings.Split(strings.TrimSpace(annotation), ",")...)
 	}

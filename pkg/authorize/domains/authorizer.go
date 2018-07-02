@@ -17,19 +17,15 @@ limitations under the License.
 package domains
 
 import (
-	"errors"
+	"context"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
-	"github.com/patrickmn/go-cache"
 	extensions "k8s.io/api/extensions/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/kubernetes"
 )
 
 // authorizer is used to wrap the interaction with the psp runtime
@@ -39,29 +35,26 @@ type authorizer struct {
 }
 
 // Admit is responsible for authorizing the pod
-func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
+func (c *authorizer) Admit(_ context.Context, ax *api.Context) field.ErrorList {
 	var errs field.ErrorList
 
-	ingress, ok := object.(*extensions.Ingress)
-	if !ok {
-		return append(errs, field.InternalError(field.NewPath("object").Child(reflect.TypeOf(object).String()),
-			errors.New("invalid object, expected ingress")))
-	}
 	// @step: get namespace for this object
-	namespace, err := utils.GetCachedNamespace(client, mcache, ingress.Namespace)
+	ingress := ax.Object.(*extensions.Ingress)
+	namespace, err := utils.GetCachedNamespace(ax.Client, ax.Cache, ingress.Namespace)
 	if err != nil {
 		return append(errs, field.InternalError(field.NewPath("namespace"), err))
 	}
 
 	// @check the annotation exists on the namespace
-	annotation, found := namespace.GetAnnotations()[Annotation]
+	tagName := ax.Annotation(Name)
+	annotation, found := namespace.GetAnnotations()[tagName]
 	if !found {
-		return append(errs, field.Invalid(field.NewPath("namespace", "annotations").Key(Annotation), "", "no whitelist annotation"))
+		return append(errs, field.Invalid(field.NewPath("namespace", "annotations").Key(tagName), "", "no whitelist annotation"))
 	}
 
 	// @check the whitelist is not empty
 	if annotation == "" {
-		return append(errs, field.Invalid(field.NewPath("namespace", "annotations").Key(Annotation), "", "whitelist is empty"))
+		return append(errs, field.Invalid(field.NewPath("namespace", "annotations").Key(tagName), "", "whitelist is empty"))
 	}
 	whitelist := strings.Split(annotation, ",")
 
