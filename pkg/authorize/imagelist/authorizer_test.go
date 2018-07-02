@@ -17,6 +17,7 @@ limitations under the License.
 package imagelist
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -35,6 +36,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+const testAnnotation = "policy-admission.acp.homeoffice.gov.uk"
 
 type imageListCheck struct {
 	Containers     []core.Container
@@ -194,15 +197,22 @@ func newTestAuthorizer(t *testing.T, config *Config, imagelist []string) *testAu
 func (c *testAuthorizer) runTests(t *testing.T, checks map[string]imageListCheck) {
 	defer c.upstream.Close()
 
-	mcache := cache.New(1*time.Minute, 1*time.Minute)
-	client := fake.NewSimpleClientset()
-
 	for desc, check := range checks {
+		ctx := newTestContext()
 		pod := newTestPod()
 		pod.Spec.InitContainers = check.InitContainers
 		pod.Spec.Containers = check.Containers
+		ctx.Object = pod
 
-		assert.Equal(t, check.Errors, c.svc.Admit(client, mcache, pod), "case: '%s' result not as expected", desc)
+		assert.Equal(t, check.Errors, c.svc.Admit(context.TODO(), ctx), "case: '%s' result not as expected", desc)
+	}
+}
+
+func newTestContext() *api.Context {
+	return &api.Context{
+		Cache:  cache.New(1*time.Minute, 1*time.Minute),
+		Client: fake.NewSimpleClientset(),
+		Prefix: "policy-admission.acp.homeoffice.gov.uk",
 	}
 }
 

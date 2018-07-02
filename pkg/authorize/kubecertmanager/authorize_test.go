@@ -17,6 +17,7 @@ limitations under the License.
 package kubecertmanager
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -163,7 +164,8 @@ func newTestAuthorizer(t *testing.T, config *Config) *testAuthorizer {
 
 func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]kubeCertCheck) {
 	for desc, check := range checks {
-		// update the resolver
+		cx := newTestContext()
+
 		if check.Resolves != "" {
 			c.svc.(*authorizer).resolve = &testResolver{hostname: check.Resolves}
 		}
@@ -174,11 +176,17 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]kubeCertCheck
 		}
 		ingress.ObjectMeta.Annotations = check.Annotations
 		ingress.ObjectMeta.Labels = check.Labels
+		cx.Object = ingress
 
-		client := fake.NewSimpleClientset()
-		mcache := cache.New(1*time.Minute, 1*time.Minute)
+		assert.Equal(t, check.Errors, c.svc.Admit(context.TODO(), cx), "case: '%s' result not as expected", desc)
+	}
+}
 
-		assert.Equal(t, check.Errors, c.svc.Admit(client, mcache, ingress), "case: '%s' result not as expected", desc)
+func newTestContext() *api.Context {
+	return &api.Context{
+		Cache:  cache.New(1*time.Minute, 1*time.Minute),
+		Client: fake.NewSimpleClientset(),
+		Prefix: "policy-admission.acp.homeoffice.gov.uk",
 	}
 }
 

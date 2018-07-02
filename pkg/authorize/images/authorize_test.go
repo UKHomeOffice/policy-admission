@@ -17,6 +17,7 @@ limitations under the License.
 package images
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -121,9 +122,10 @@ func newTestAuthorizer(t *testing.T, config *Config) *testAuthorizer {
 
 func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]imageCheck) {
 	for desc, check := range checks {
+		cx := newTestContext()
 		namespace := &core.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "test"}}
 		if check.Whitelist != "" {
-			namespace.Annotations = map[string]string{Annotation: check.Whitelist}
+			namespace.Annotations = map[string]string{cx.Annotation(Name): check.Whitelist}
 		}
 		pod := check.Pod
 		if pod == nil {
@@ -133,11 +135,18 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]imageCheck) {
 		if image != "" {
 			pod.Spec.Containers[0].Image = image
 		}
-		client := fake.NewSimpleClientset()
-		client.CoreV1().Namespaces().Create(namespace)
-		mcache := cache.New(1*time.Minute, 1*time.Minute)
+		cx.Client.CoreV1().Namespaces().Create(namespace)
+		cx.Object = pod
 
-		assert.Equal(t, check.Errors, c.svc.Admit(client, mcache, pod), "case: '%s' result not as expected", desc)
+		assert.Equal(t, check.Errors, c.svc.Admit(context.TODO(), cx), "case: '%s' result not as expected", desc)
+	}
+}
+
+func newTestContext() *api.Context {
+	return &api.Context{
+		Cache:  cache.New(1*time.Minute, 1*time.Minute),
+		Client: fake.NewSimpleClientset(),
+		Prefix: "policy-admission.acp.homeoffice.gov.uk",
 	}
 }
 

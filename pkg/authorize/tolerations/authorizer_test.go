@@ -17,6 +17,7 @@ limitations under the License.
 package tolerations
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -235,6 +236,8 @@ func newTestAuthorizer(t *testing.T, config *Config) *testAuthorizer {
 
 func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]tolerationCheck) {
 	for desc, check := range checks {
+		cx := newTestContext()
+
 		pod := check.Pod
 		if pod == nil {
 			pod = newTestPod()
@@ -249,13 +252,20 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]tolerationChe
 		if len(check.Whitelist) > 0 {
 			encoded, err := json.Marshal(&check.Whitelist)
 			require.NoError(t, err, "case '%s' unable to encode whitelist", desc)
-			namespace.Annotations[Annotation] = string(encoded)
+			namespace.Annotations[cx.Annotation(Name)] = string(encoded)
 		}
-		client := fake.NewSimpleClientset()
-		client.CoreV1().Namespaces().Create(namespace)
-		mcache := cache.New(1*time.Minute, 1*time.Minute)
+		cx.Client.CoreV1().Namespaces().Create(namespace)
+		cx.Object = pod
 
-		assert.Equal(t, check.Errors, c.svc.Admit(client, mcache, pod), "case: '%s' result not as expected", desc)
+		assert.Equal(t, check.Errors, c.svc.Admit(context.TODO(), cx), "case: '%s' result not as expected", desc)
+	}
+}
+
+func newTestContext() *api.Context {
+	return &api.Context{
+		Cache:  cache.New(1*time.Minute, 1*time.Minute),
+		Client: fake.NewSimpleClientset(),
+		Prefix: "policy-admission.acp.homeoffice.gov.uk",
 	}
 }
 

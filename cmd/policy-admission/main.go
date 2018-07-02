@@ -34,7 +34,7 @@ import (
 
 var (
 	// Version is the version of the service
-	Version = "v0.0.22"
+	Version = "v0.0.23"
 	// GitSHA is the git sha this was built off
 	GitSHA = "unknown"
 )
@@ -86,8 +86,14 @@ func main() {
 			},
 			cli.StringFlag{
 				Name:   "slack-webhook",
-				Usage:  "the slack webhook to send the events to ",
+				Usage:  "slack webhook to send the events to `URL`",
 				EnvVar: "SLACK_WEBHOOK",
+			},
+			cli.StringFlag{
+				Name:   "controller-name",
+				Usage:  "controller name also used as prefix in annotations `NAME`",
+				EnvVar: "CONTROLLER_NAME",
+				Value:  "policy-admission.acp.homeoffice.gov.uk",
 			},
 			cli.BoolFlag{
 				Name:   "enable-logging",
@@ -108,7 +114,7 @@ func main() {
 				Name:   "rate-limit",
 				Usage:  "the time duration to attempt to wrap up duplicate events `DURATION`",
 				EnvVar: "RATE_LIMIT",
-				Value:  60 * time.Second,
+				Value:  90 * time.Second,
 			},
 			cli.BoolFlag{
 				Name:   "verbose",
@@ -130,17 +136,18 @@ func main() {
 			}
 
 			config := &server.Config{
-				ClusterName:   cx.String("cluster"),
-				EnableEvents:  cx.Bool("enable-events"),
-				EnableMetrics: cx.Bool("enable-metrics"),
-				EnableLogging: cx.Bool("enable-logging"),
-				Listen:        cx.String("listen"),
-				Namespace:     cx.String("namespace"),
-				RateLimit:     cx.Duration("rate-limit"),
-				SlackWebHook:  cx.String("slack-webhook"),
-				TLSCert:       cx.String("tls-cert"),
-				TLSKey:        cx.String("tls-key"),
-				Verbose:       cx.Bool("verbose"),
+				ClusterName:    cx.String("cluster"),
+				ControllerName: cx.String("controller-name"),
+				EnableEvents:   cx.Bool("enable-events"),
+				EnableMetrics:  cx.Bool("enable-metrics"),
+				EnableLogging:  cx.Bool("enable-logging"),
+				Listen:         cx.String("listen"),
+				Namespace:      cx.String("namespace"),
+				RateLimit:      cx.Duration("rate-limit"),
+				SlackWebHook:   cx.String("slack-webhook"),
+				TLSCert:        cx.String("tls-cert"),
+				TLSKey:         cx.String("tls-key"),
+				Verbose:        cx.Bool("verbose"),
 			}
 
 			// @step: create the server

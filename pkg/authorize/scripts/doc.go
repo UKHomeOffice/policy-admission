@@ -33,6 +33,10 @@ type Config struct {
 	IgnoreNamespaces []string `yaml:"ignored-namespaces" json:"ignored-namespaces"`
 	// FilterOn is the kind of object you wish to filter is any
 	FilterOn string `yaml:"filter-on" json:"filter-on"`
+	// Options is contextual options passed into the authorizer
+	Options map[string]string
+	// Name is a arbitary name of the authorizer
+	Name string `yaml:"name" json:"name"`
 	// Script is the javascript to run on the object
 	Script string `yaml:"script" json:"script"`
 	// Timeout the timeout applied to the script
@@ -42,8 +46,9 @@ type Config struct {
 // NewDefaultConfig is the default configuration
 func NewDefaultConfig() *Config {
 	return &Config{
-		IgnoreNamespaces: []string{"kube-system", "kube-public", "kube-admission"},
 		FilterOn:         api.FilterAll,
+		IgnoreNamespaces: []string{"kube-system", "kube-public", "kube-admission"},
+		Name:             "unknown",
 		Timeout:          5 * time.Second,
 	}
 }

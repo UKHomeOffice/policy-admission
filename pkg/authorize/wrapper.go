@@ -20,16 +20,14 @@ limitations under the License.
 package authorize
 
 import (
+	"context"
 	"sync"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
-	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/kubernetes"
 )
 
 // wrapper is a reloadable authorization provider
@@ -58,10 +56,10 @@ func newWrapper(name, path string) (api.Authorize, error) {
 }
 
 // Admit makes a decision on the pod acceptance
-func (w *wrapper) Admit(client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
+func (w *wrapper) Admit(ctx context.Context, cx *api.Context) field.ErrorList {
 	w.RLock()
 	defer w.RUnlock()
-	return w.provider.Admit(client, mcache, object)
+	return w.provider.Admit(ctx, cx)
 }
 
 // Name is the name of the provider

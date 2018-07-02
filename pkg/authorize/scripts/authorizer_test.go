@@ -17,6 +17,7 @@ limitations under the License.
 package scripts
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"testing"
@@ -201,14 +202,13 @@ func newTestAuthorizer(t *testing.T, config *Config) *testAuthorizer {
 }
 
 func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]check) {
-	client := fake.NewSimpleClientset()
-	client.CoreV1().Namespaces().Create(&core.Namespace{
+	cx := newTestContext()
+	cx.Client.CoreV1().Namespaces().Create(&core.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "test",
 			Annotations: make(map[string]string, 0),
 		},
 	})
-	mcache := cache.New(1*time.Minute, 1*time.Minute)
 
 	for desc, check := range checks {
 		s := c.svc.(*authorizer)
@@ -231,8 +231,17 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]check) {
 			}
 			check.Object = object
 		}
+		cx.Object = check.Object
 
-		assert.Equal(t, check.Errors, c.svc.Admit(client, mcache, check.Object), "case: '%s' result not as expected", desc)
+		assert.Equal(t, check.Errors, c.svc.Admit(context.TODO(), cx), "case: '%s' result not as expected", desc)
+	}
+}
+
+func newTestContext() *api.Context {
+	return &api.Context{
+		Cache:  cache.New(1*time.Minute, 1*time.Minute),
+		Client: fake.NewSimpleClientset(),
+		Prefix: "policy-admission.acp.homeoffice.gov.uk",
 	}
 }
 

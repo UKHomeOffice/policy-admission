@@ -28,8 +28,6 @@ import (
 )
 
 const (
-	// admissionControllerName is the name we register as
-	admissionControllerName = "policy-admission.acp.homeoffice.gov.uk"
 	// serviceAccountNamespaceFile is the path in a pod where we can find the namespace file
 	serviceAccountNamespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
@@ -56,6 +54,8 @@ type Admission struct {
 type Config struct {
 	// ClusterName is the name of the cluster
 	ClusterName string `yaml:"cluster-name"`
+	// ControllerName is the tags prefix for the anontations
+	ControllerName string `yaml:"controller-name"`
 	// EnableEvents indicates we should enable event logging
 	EnableEvents bool `yaml:"enable-events"`
 	// EnableMetrics indicates we should expose the metrics

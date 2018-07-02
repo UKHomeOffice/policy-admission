@@ -32,9 +32,7 @@ import (
 
 	"github.com/patrickmn/go-cache"
 	core "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/kubernetes"
 )
 
 // authorizer is used to wrap the interaction with the psp runtime
@@ -50,24 +48,24 @@ type authorizer struct {
 }
 
 // Admit is responsible for adding a policy to the enforcers
-func (c *authorizer) Admit(client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
+func (c *authorizer) Admit(ctx context.Context, actx *api.Context) field.ErrorList {
 	var errs field.ErrorList
 
-	pod, ok := object.(*core.Pod)
+	pod, ok := actx.Object.(*core.Pod)
 	if !ok {
 		return append(errs, field.InternalError(field.NewPath("object"), errors.New("invalid object, expected Pod")))
 	}
 
 	// @check the init containers are valid
-	errs = append(errs, c.validateImage(field.NewPath("spec.initContainers"), pod.Spec.InitContainers)...)
+	errs = append(errs, c.validateImage(ctx, field.NewPath("spec.initContainers"), pod.Spec.InitContainers)...)
 	// @check the pod containers are valid
-	errs = append(errs, c.validateImage(field.NewPath("spec.containers"), pod.Spec.Containers)...)
+	errs = append(errs, c.validateImage(ctx, field.NewPath("spec.containers"), pod.Spec.Containers)...)
 
 	return errs
 }
 
 // validateImage is responsible for calling upstream to the provider
-func (c *authorizer) validateImage(fld *field.Path, container []core.Container) field.ErrorList {
+func (c *authorizer) validateImage(ctx context.Context, fld *field.Path, container []core.Container) field.ErrorList {
 	var errs field.ErrorList
 	var err error
 	// @step: iterate the container and check the are cool
@@ -76,7 +74,7 @@ func (c *authorizer) validateImage(fld *field.Path, container []core.Container) 
 		permit, found := c.lcache.Get(container.Image)
 		if !found {
 			start := time.Now()
-			permit, err = c.handleImageRequest(container.Image)
+			permit, err = c.handleImageRequest(ctx, container.Image)
 			if err != nil {
 				return append(errs, field.InternalError(field.NewPath("imagelist"), fmt.Errorf("communication failure with imagelist: %s", err.Error())))
 			}
@@ -103,7 +101,7 @@ func (c *authorizer) validateImage(fld *field.Path, container []core.Container) 
 }
 
 // handleImageRequest is resposible for making the request to the upstream service
-func (c *authorizer) handleImageRequest(image string) (bool, error) {
+func (c *authorizer) handleImageRequest(ctx context.Context, image string) (bool, error) {
 	uri := fmt.Sprintf("%s/%s", c.endpoint.String(), image)
 
 	req, err := http.NewRequest(http.MethodGet, uri, nil)
@@ -114,7 +112,7 @@ func (c *authorizer) handleImageRequest(image string) (bool, error) {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer: %s", c.config.Token))
 	}
 
-	ctx, cancel := context.WithCancel(context.TODO())
+	ctx, cancel := context.WithCancel(ctx)
 	time.AfterFunc(c.config.Timeout, func() {
 		cancel()
 	})
