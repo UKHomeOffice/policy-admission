@@ -64,7 +64,7 @@ func (m *manager) Send(event *api.Event) error {
 	}
 
 	// @step: generate a key used to index duplicate events .. object uid and message
-	key := filepath.Join(event.Object.GetNamespace(), event.Object.GetName(), event.Detail)
+	key := filepath.Join(event.Object.GetNamespace(), event.Detail)
 	encoded := sha.Sum256([]byte(key))
 	hash := base64.RawStdEncoding.EncodeToString(encoded[:])
 
