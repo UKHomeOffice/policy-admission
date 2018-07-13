@@ -23,6 +23,7 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
 	"github.com/labstack/echo"
+	uuid "github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 	admission "k8s.io/api/admission/v1beta1"
 )
@@ -30,7 +31,18 @@ import (
 // admitHandler is responsible for handling the authorization request
 func (c *Admission) admitHandler(ctx echo.Context) error {
 	review := &admission.AdmissionReview{}
-	trx := utils.SetTRX(ctx.Request().Context(), utils.Random(12))
+
+	// @step: create a correlation id for this request
+	id, err := uuid.NewV1()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Error("failed to generate a correlation id")
+
+		return ctx.NoContent(http.StatusInternalServerError)
+	}
+
+	trx := utils.SetTRX(ctx.Request().Context(), id.String())
 
 	// @step: we need to unmarshal the review
 	if err := ctx.Bind(review); err != nil {
