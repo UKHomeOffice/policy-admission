@@ -105,13 +105,15 @@ type Authorize interface {
 	// Name is the name of the authorizer
 	Name() string
 	// FilterOn return the filter for the authorizer
-	FilterOn() Filter
+	FilterOn() *Filter
 	// Stop is called when the authorizer is being replaced
 	Stop() error
 }
 
 // Filter defines what the authorizer is looking to filter on, or listen to
 type Filter struct {
+	// Group is the api group of the kind - defaults to core
+	Group string
 	// Kind is the object kind we looking filter on i.e. (pods, ingresses etc)
 	Kind string
 	// IgnoreNamespace indicates you wish to ignore the following namespace

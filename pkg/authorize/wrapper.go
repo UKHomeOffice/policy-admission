@@ -68,7 +68,7 @@ func (w *wrapper) Name() string {
 }
 
 // FilterOn return the filter for the provider
-func (w *wrapper) FilterOn() api.Filter {
+func (w *wrapper) FilterOn() *api.Filter {
 	w.RLock()
 	defer w.RUnlock()
 	return w.provider.FilterOn()

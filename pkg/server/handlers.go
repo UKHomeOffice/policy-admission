@@ -33,22 +33,13 @@ func (c *Admission) admitHandler(ctx echo.Context) error {
 	review := &admission.AdmissionReview{}
 
 	// @step: create a correlation id for this request
-	id, err := uuid.NewV1()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"error": err.Error(),
-		}).Error("failed to generate a correlation id")
-
-		return ctx.NoContent(http.StatusInternalServerError)
-	}
-
-	trx := utils.SetTRX(ctx.Request().Context(), id.String())
+	trx := utils.SetTRX(ctx.Request().Context(), uuid.NewV1().String())
 
 	// @step: we need to unmarshal the review
 	if err := ctx.Bind(review); err != nil {
 		log.WithFields(log.Fields{
-			"error":  err.Error(),
-			"trx-id": utils.GetTRX(trx),
+			"error": err.Error(),
+			"id":    utils.GetTRX(trx),
 		}).Error("unable to decode the request")
 
 		return ctx.NoContent(http.StatusBadRequest)
@@ -58,8 +49,8 @@ func (c *Admission) admitHandler(ctx echo.Context) error {
 	now := time.Now()
 	if err := c.authorize(trx, review); err != nil {
 		log.WithFields(log.Fields{
-			"error":  err.Error(),
-			"trx-id": utils.GetTRX(trx),
+			"error": err.Error(),
+			"id":    utils.GetTRX(trx),
 		}).Error("unable to validation request against policy")
 
 		return ctx.NoContent(http.StatusInternalServerError)

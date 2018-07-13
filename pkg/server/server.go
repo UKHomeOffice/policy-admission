@@ -40,11 +40,6 @@ func init() {
 	log.SetFormatter(&log.JSONFormatter{})
 }
 
-var (
-	// ErrNotSupported indicated we do not support this object type
-	ErrNotSupported = errors.New("unsupported object type")
-)
-
 // Start is repsonsible for starting the service up
 func (c *Admission) Start() error {
 	if c.client == nil {
@@ -84,7 +79,6 @@ func New(config *Config, providers []api.Authorize) (*Admission, error) {
 	if err := config.IsValid(); err != nil {
 		return nil, err
 	}
-
 	if len(providers) <= 0 {
 		return nil, errors.New("no authorizers defined")
 	}

@@ -26,10 +26,11 @@ import (
 	core "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// getResourceForReview checks the kind of resource and decodes into the specific type
-func (c *Admission) getResourceForReview(kind string, review *admission.AdmissionReview) (metav1.Object, error) {
+// decodeObject checks the kind of resource and decodes into the specific type
+func decodeObject(kind string, review *admission.AdmissionReview) (metav1.Object, error) {
 	var object metav1.Object
 
 	switch kind {
@@ -52,7 +53,7 @@ func (c *Admission) getResourceForReview(kind string, review *admission.Admissio
 	case api.FilterStatefulSet:
 		object = &apps.StatefulSet{}
 	default:
-		return nil, ErrNotSupported
+		object = &unstructured.Unstructured{}
 	}
 
 	// @step: decode the object into a object specification

@@ -134,13 +134,13 @@ func (c *authorizer) validateValue(path *field.Path, v gjson.Result, m *Match, e
 }
 
 // FilterOn returns the authorizer handle
-func (c *authorizer) FilterOn() api.Filter {
+func (c *authorizer) FilterOn() *api.Filter {
 	filter := api.FilterAll
 	if c.config.FilterOn != "" {
 		filter = c.config.FilterOn
 	}
 
-	return api.Filter{
+	return &api.Filter{
 		IgnoreNamespaces: c.config.IgnoreNamespaces,
 		Kind:             filter,
 	}

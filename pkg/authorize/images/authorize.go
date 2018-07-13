@@ -102,6 +102,7 @@ func (c *authorizer) validateImagePolicy(policies []*regexp.Regexp, containers [
 
 // parseImagePolicyAnnotation is responsible for parsing the namespace annotation
 func (c *authorizer) parseImagePolicyAnnotation(annotation string) (list []*regexp.Regexp, errs field.ErrorList) {
+
 	for _, x := range strings.Split(annotation, ",") {
 		x = strings.TrimLeft(x, " ")
 		x = strings.TrimRight(x, " ")
@@ -133,8 +134,8 @@ func (c *authorizer) Name() string {
 }
 
 // FilterOn returns the authorizer handle
-func (c *authorizer) FilterOn() api.Filter {
-	return api.Filter{
+func (c *authorizer) FilterOn() *api.Filter {
+	return &api.Filter{
 		IgnoreNamespaces: c.config.IgnoreNamespaces,
 		Kind:             api.FilterPods,
 	}
