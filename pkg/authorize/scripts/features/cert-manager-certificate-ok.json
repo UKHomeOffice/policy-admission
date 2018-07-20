@@ -1,0 +1,19 @@
+{
+  "apiVersion": "certmanager.k8s.io/v1alpha1",
+  "kind": "Certificate",
+  "metadata": {
+    "name": "example-com",
+    "namespace": "test"
+  },
+  "spec": {
+    "secretName": "example-com-tls",
+    "issuerRef": {
+      "name": "platform-ca",
+      "kind": "ClusterIssuer"
+    },
+    "commonName": "example",
+    "dnsNames": [
+      "localhost"
+    ]
+  }
+}
