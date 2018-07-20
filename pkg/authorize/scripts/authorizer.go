@@ -90,6 +90,10 @@ func (c *authorizer) validateObject(ctx context.Context, client kubernetes.Inter
 			return otto.Value{}
 		})
 
+		vm.Set("hasPrefix", hasPrefix)
+		vm.Set("hasSuffix", hasSuffix)
+		vm.Set("inDomain", inDomain)
+
 		vm.Set("deny", func(call otto.FunctionCall) otto.Value {
 			path := call.Argument(0).String()
 			message := call.Argument(1).String()

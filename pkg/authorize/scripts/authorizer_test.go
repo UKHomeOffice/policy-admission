@@ -29,8 +29,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	core "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -81,13 +81,53 @@ func TestScriptTimeout(t *testing.T) {
 
 func TestScriptAuthorizer(t *testing.T) {
 	checks := map[string]check{
+		"checking the certificate is permitted": {
+			ScriptFile: "features/cert-manager-certificate.js",
+			ObjectFile: "features/cert-manager-certificate-ok.json",
+		},
+		"checking the certificate is denied on a bad common name": {
+			ScriptFile: "features/cert-manager-certificate.js",
+			ObjectFile: "features/cert-manager-certificate-bad-cn.json",
+			Errors: field.ErrorList{
+				{
+					Type:     field.ErrorTypeInvalid,
+					Field:    "spec.commonName",
+					BadValue: "this.is.bad",
+					Detail:   "certificate common name: this.is.bad does not comply with cluster policy",
+				},
+			},
+		},
+		"checking the certificate is denied on a bad dnsName": {
+			ScriptFile: "features/cert-manager-certificate.js",
+			ObjectFile: "features/cert-manager-certificate-bad-dnsname.json",
+			Errors: field.ErrorList{
+				{
+					Type:     field.ErrorTypeInvalid,
+					Field:    "spec.dnsNames[1]",
+					BadValue: "bas.host",
+					Detail:   "bas.host is denied by cluster policy, being outside your namespace",
+				},
+			},
+		},
+		"checking the certificate is denied on a bad namespace": {
+			ScriptFile: "features/cert-manager-certificate.js",
+			ObjectFile: "features/cert-manager-certificate-bad-namespace.json",
+			Errors: field.ErrorList{
+				{
+					Type:     field.ErrorTypeInvalid,
+					Field:    "spec.dnsNames[0]",
+					BadValue: "test.default.svc.cluster.local",
+					Detail:   "test.default.svc.cluster.local is denied by cluster policy, being outside your namespace",
+				},
+			},
+		},
 		"check the action is deny when a kind is pod": {
 			Config: &Config{
 				Script: `
-if (object.kind == "Pod") {
-	deny("kind", "denied by security policy", object.kind)
-}
-`,
+			if (object.kind == "Pod") {
+				deny("kind", "denied by security policy", object.kind)
+			}
+			`,
 			},
 			Object: &core.Pod{
 				TypeMeta: metav1.TypeMeta{
@@ -109,13 +149,13 @@ if (object.kind == "Pod") {
 		"check the action is deny on a annotation": {
 			Config: &Config{
 				Script: `
-if (object.kind == "Pod") {
-	v = object.metadata.annotations["something"]
-	if (v != "") {
-		deny("metadata.annotations[something]", "no permitted", v)
-	}
-}
-`,
+			if (object.kind == "Pod") {
+				v = object.metadata.annotations["something"]
+				if (v != "") {
+					deny("metadata.annotations[something]", "no permitted", v)
+				}
+			}
+			`,
 			},
 			Object: &core.Pod{
 				TypeMeta: metav1.TypeMeta{
@@ -140,6 +180,22 @@ if (object.kind == "Pod") {
 		"checking the deployment is allowed with bundle": {
 			ScriptFile: "features/deny_no_bundle.js",
 			ObjectFile: "features/deployment_with_bundle.json",
+		},
+		"checking the dns is ok": {
+			ScriptFile: "features/cert-manager-ingress-dns01.js",
+			ObjectFile: "features/cert-manager-ingress-dns01-ok.json",
+		},
+		"checking the dns is denied": {
+			ScriptFile: "features/cert-manager-ingress-dns01.js",
+			ObjectFile: "features/cert-manager-ingress-dns01-bad.json",
+			Errors: field.ErrorList{
+				{
+					Type:     field.ErrorTypeInvalid,
+					BadValue: "site.bad_domains.com",
+					Field:    "spec.rules[0].host",
+					Detail:   "the hostname is not permitted by policy",
+				},
+			},
 		},
 		"checking the ingress scripts find the errors": {
 			ScriptFile: "features/deny_ingress_annotations.js",
@@ -225,7 +281,7 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]check) {
 			encoded, err := ioutil.ReadFile(check.ObjectFile)
 			require.NoError(t, err, "case: %s, unable to read in script file, error: %s", desc, err)
 
-			object := &extensions.Deployment{}
+			object := &unstructured.Unstructured{}
 			if err = json.Unmarshal(encoded, object); err != nil {
 				require.NoError(t, err, "case: %s, unable to unmarshal, error: %s", desc, err)
 			}
