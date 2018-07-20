@@ -67,7 +67,7 @@ authors:
 
 dep-install:
 	@echo "--> Retrieving dependencies"
-	@dep ensure
+	@dep ensure -v
 
 deps:
 	@echo "--> Installing build dependencies"
