@@ -151,13 +151,13 @@ func (c *authorizer) runSafely(ctx context.Context, e *otto.Otto, script string,
 }
 
 // FilterOn returns the authorizer handle
-func (c *authorizer) FilterOn() api.Filter {
+func (c *authorizer) FilterOn() *api.Filter {
 	filterOn := c.config.FilterOn
 	if filterOn == "" {
 		filterOn = api.FilterAll
 	}
 
-	return api.Filter{
+	return &api.Filter{
 		IgnoreNamespaces: c.config.IgnoreNamespaces,
 		Kind:             filterOn,
 	}

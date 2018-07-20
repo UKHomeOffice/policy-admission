@@ -44,77 +44,64 @@ const (
 // authorize is responsible for applying the policy on the incoming request
 func (c *Admission) authorize(ctx context.Context, review *admission.AdmissionReview) error {
 	// @check if the review is for something we can process
-	kind := review.Request.Kind.Kind
-	object, err := c.getResourceForReview(kind, review)
+	object, err := decodeObject(review.Request.Kind.Kind, review)
 	if err != nil {
-		if err != ErrNotSupported {
-			log.WithFields(log.Fields{
-				"error":     err.Error(),
-				"name":      review.Request.Name,
-				"namespace": review.Request.Namespace,
-				"trx-id":    utils.GetTRX(ctx),
-			}).Errorf("unable to decode object for review review")
-
-			return err
-		}
-
-		// @else the object was not supported, we permit through but raise a warning
 		log.WithFields(log.Fields{
+			"error":     err.Error(),
+			"id":        utils.GetTRX(ctx),
+			"name":      review.Request.Name,
+			"namespace": review.Request.Namespace,
+		}).Errorf("unable to decode object for review")
+
+		return err
+	}
+
+	// @step: attempt to get the object authorized
+	denied, reason, err := c.authorizeResource(ctx, object, review.Request.Kind)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error":     err.Error(),
+			"id":        utils.GetTRX(ctx),
+			"name":      review.Request.Name,
+			"namespace": review.Request.Namespace,
+		}).Errorf("unable to handle admission review")
+
+		return err
+	}
+
+	// @check if the object was rejected
+	if denied {
+		admissionTotalMetric.WithLabelValues(actionDenied).Inc()
+
+		log.WithFields(log.Fields{
+			"error":     reason,
 			"group":     review.Request.Kind.Group,
+			"id":        utils.GetTRX(ctx),
 			"kind":      review.Request.Kind.Kind,
 			"name":      review.Request.Name,
 			"namespace": review.Request.Namespace,
-			"trx-id":    utils.GetTRX(ctx),
-		}).Warn("object kind is not suppported")
-	}
+			"uid":       review.Request.UserInfo.UID,
+			"user":      review.Request.UserInfo.Username,
+		}).Warn("authorization for object execution denied")
 
-	if object != nil {
-		denied, reason, err := c.handleAuthorization(ctx, object, kind)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"error":     err.Error(),
-				"name":      review.Request.Name,
-				"namespace": review.Request.Namespace,
-				"trx-id":    utils.GetTRX(ctx),
-			}).Errorf("unable to handle admission review")
-
-			return err
+		review.Response = &admission.AdmissionResponse{
+			Allowed: false,
+			Result: &metav1.Status{
+				Code:    http.StatusForbidden,
+				Message: reason,
+				Reason:  metav1.StatusReasonForbidden,
+				Status:  metav1.StatusFailure,
+			},
 		}
 
-		// @check if the object was rejected
-		if denied {
-			admissionTotalMetric.WithLabelValues(actionDenied).Inc()
+		// @step: log the denial is required
+		go c.events.Send(&api.Event{
+			Detail: reason,
+			Object: object,
+			Review: review.Request,
+		})
 
-			log.WithFields(log.Fields{
-				"error":     reason,
-				"group":     review.Request.Kind.Group,
-				"kind":      review.Request.Kind.Kind,
-				"name":      review.Request.Name,
-				"namespace": review.Request.Namespace,
-				"user-uid":  review.Request.UserInfo.UID,
-				"user":      review.Request.UserInfo.Username,
-				"trx-id":    utils.GetTRX(ctx),
-			}).Warn("authorization for object execution denied")
-
-			review.Response = &admission.AdmissionResponse{
-				Allowed: false,
-				Result: &metav1.Status{
-					Code:    http.StatusForbidden,
-					Message: reason,
-					Reason:  metav1.StatusReasonForbidden,
-					Status:  metav1.StatusFailure,
-				},
-			}
-
-			// @step: log the denial is required
-			go c.events.Send(&api.Event{
-				Detail: reason,
-				Object: object,
-				Review: review.Request,
-			})
-
-			return nil
-		}
+		return nil
 	}
 
 	admissionTotalMetric.WithLabelValues(actionAccepted).Inc()
@@ -123,19 +110,20 @@ func (c *Admission) authorize(ctx context.Context, review *admission.AdmissionRe
 
 	log.WithFields(log.Fields{
 		"group":     review.Request.Kind.Group,
+		"id":        utils.GetTRX(ctx),
 		"kind":      review.Request.Kind.Kind,
 		"name":      review.Request.Name,
 		"namespace": review.Request.Namespace,
-		"user":      review.Request.UserInfo.Username,
 		"uid":       review.Request.UserInfo.UID,
-		"trx-id":    utils.GetTRX(ctx),
+		"user":      review.Request.UserInfo.Username,
 	}).Info("object has been authorized for execution")
 
 	return nil
 }
 
-// handleAuthorization is responsible for handling the review and returning a result
-func (c *Admission) handleAuthorization(ctx context.Context, object metav1.Object, kind string) (bool, string, error) {
+// authorizeResource is responsible for handling the review and returning a result
+func (c *Admission) authorizeResource(ctx context.Context, object metav1.Object, kind metav1.GroupVersionKind) (bool, string, error) {
+	// @step: create a authorization context
 	cx := &api.Context{
 		Cache:  c.resourceCache,
 		Client: c.client,
@@ -145,20 +133,15 @@ func (c *Admission) handleAuthorization(ctx context.Context, object metav1.Objec
 
 	// @step: iterate the authorizers and fail on first refusal
 	for i, provider := range c.providers {
-
 		// @check if this authorizer is listening to this type
-		if provider.FilterOn().Kind != api.FilterAll && provider.FilterOn().Kind != kind {
-			continue
-		}
-
-		// @check if the authorizer is ignoring this namespace
-		if utils.Contained(object.GetNamespace(), provider.FilterOn().IgnoreNamespaces) {
+		if !provider.FilterOn().Matched(kind, object.GetNamespace()) {
 			log.WithFields(log.Fields{
-				"name":      object.GetName(),
+				"group":     kind.Group,
+				"id":        utils.GetTRX(ctx),
+				"kind":      kind.Kind,
 				"namespace": object.GetNamespace(),
 				"provider":  provider.Name(),
-				"trx-id":    utils.GetTRX(ctx),
-			}).Warn("provider is ignored on this namespace")
+			}).Debug("provider is not filtering on this object")
 
 			continue
 		}
@@ -184,10 +167,12 @@ func (c *Admission) handleAuthorization(ctx context.Context, object metav1.Objec
 					if provider.FilterOn().IgnoreOnFailure {
 						log.WithFields(log.Fields{
 							"error":     x.Detail,
+							"group":     kind.Group,
+							"id":        utils.GetTRX(ctx),
+							"kind":      kind.Kind,
 							"name":      object.GetGenerateName(),
 							"namespace": object.GetNamespace(),
-							"trx-id":    utils.GetTRX(ctx),
-						}).Warn("internal provider error, skipping the provider result")
+						}).Error("internal provider error, skipping the provider result")
 
 						skipme = true
 					}

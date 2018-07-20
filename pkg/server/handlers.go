@@ -23,6 +23,7 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
 	"github.com/labstack/echo"
+	uuid "github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 	admission "k8s.io/api/admission/v1beta1"
 )
@@ -30,13 +31,15 @@ import (
 // admitHandler is responsible for handling the authorization request
 func (c *Admission) admitHandler(ctx echo.Context) error {
 	review := &admission.AdmissionReview{}
-	trx := utils.SetTRX(ctx.Request().Context(), utils.Random(12))
+
+	// @step: create a correlation id for this request
+	trx := utils.SetTRX(ctx.Request().Context(), uuid.NewV1().String())
 
 	// @step: we need to unmarshal the review
 	if err := ctx.Bind(review); err != nil {
 		log.WithFields(log.Fields{
-			"error":  err.Error(),
-			"trx-id": utils.GetTRX(trx),
+			"error": err.Error(),
+			"id":    utils.GetTRX(trx),
 		}).Error("unable to decode the request")
 
 		return ctx.NoContent(http.StatusBadRequest)
@@ -46,8 +49,8 @@ func (c *Admission) admitHandler(ctx echo.Context) error {
 	now := time.Now()
 	if err := c.authorize(trx, review); err != nil {
 		log.WithFields(log.Fields{
-			"error":  err.Error(),
-			"trx-id": utils.GetTRX(trx),
+			"error": err.Error(),
+			"id":    utils.GetTRX(trx),
 		}).Error("unable to validation request against policy")
 
 		return ctx.NoContent(http.StatusInternalServerError)

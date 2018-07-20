@@ -27,12 +27,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRandom(t *testing.T) {
-	s := Random(10)
-	assert.NotEmpty(t, s)
-	assert.Equal(t, 10, len(s))
-}
-
 func TestGetTRX(t *testing.T) {
 	testID := "test"
 	ctx := context.Background()
