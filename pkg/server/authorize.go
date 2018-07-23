@@ -82,6 +82,7 @@ func (c *Admission) authorize(ctx context.Context, review *admission.AdmissionRe
 			"namespace": review.Request.Namespace,
 			"uid":       review.Request.UserInfo.UID,
 			"user":      review.Request.UserInfo.Username,
+			"version":   review.Request.Kind.Version,
 		}).Warn("authorization for object execution denied")
 
 		review.Response = &admission.AdmissionResponse{
@@ -116,6 +117,7 @@ func (c *Admission) authorize(ctx context.Context, review *admission.AdmissionRe
 		"namespace": review.Request.Namespace,
 		"uid":       review.Request.UserInfo.UID,
 		"user":      review.Request.UserInfo.Username,
+		"version":   review.Request.Kind.Version,
 	}).Info("object has been authorized for execution")
 
 	return nil
