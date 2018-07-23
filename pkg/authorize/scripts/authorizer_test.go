@@ -48,6 +48,18 @@ type check struct {
 	ScriptFile string
 }
 
+func TestNew(t *testing.T) {
+	s, err := New(nil)
+	assert.NotNil(t, s)
+	assert.NoError(t, err)
+}
+
+func TestNewFileConfig(t *testing.T) {
+	s, err := NewFromFile("./features/config.yml")
+	assert.NotNil(t, s)
+	assert.NoError(t, err)
+}
+
 func TestDefaultConfig(t *testing.T) {
 	assert.NotNil(t, NewDefaultConfig())
 }

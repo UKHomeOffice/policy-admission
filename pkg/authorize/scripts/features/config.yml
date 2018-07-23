@@ -1,0 +1,8 @@
+name: cert-manager-ca
+ignored-namespaces:
+- kube-system
+filter-on:
+  group: certmanager.k8s.io/v1alpha1
+  kind: Certificate
+script: |
+  // test script

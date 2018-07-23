@@ -152,15 +152,7 @@ func (c *authorizer) runSafely(ctx context.Context, e *otto.Otto, script string,
 
 // FilterOn returns the authorizer handle
 func (c *authorizer) FilterOn() *api.Filter {
-	filterOn := c.config.FilterOn
-	if filterOn == "" {
-		filterOn = api.FilterAll
-	}
-
-	return &api.Filter{
-		IgnoreNamespaces: c.config.IgnoreNamespaces,
-		Kind:             filterOn,
-	}
+	return &c.config.FilterOn
 }
 
 // Name returns the name of the provider
@@ -185,6 +177,9 @@ func NewFromFile(path string) (api.Authorize, error) {
 	cfg := &Config{}
 	if err := utils.NewConfig(path).Read(cfg); err != nil {
 		return nil, err
+	}
+	if cfg.FilterOn.Kind == "" {
+		return nil, errors.New("no kind to filter on")
 	}
 
 	return New(cfg)

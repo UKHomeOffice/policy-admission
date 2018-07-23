@@ -32,7 +32,7 @@ type Config struct {
 	// IgnoreNamespaces is list of namespace to
 	IgnoreNamespaces []string `yaml:"ignored-namespaces" json:"ignored-namespaces"`
 	// FilterOn is the kind of object you wish to filter is any
-	FilterOn string `yaml:"filter-on" json:"filter-on"`
+	FilterOn api.Filter `yaml:"filter-on" json:"filter-on"`
 	// Options is contextual options passed into the authorizer
 	Options map[string]string
 	// Name is a arbitary name of the authorizer
@@ -46,7 +46,7 @@ type Config struct {
 // NewDefaultConfig is the default configuration
 func NewDefaultConfig() *Config {
 	return &Config{
-		FilterOn:         api.FilterAll,
+		FilterOn:         api.Filter{Kind: api.FilterAll},
 		IgnoreNamespaces: []string{"kube-system", "kube-public", "kube-admission"},
 		Name:             "unknown",
 		Timeout:          5 * time.Second,
