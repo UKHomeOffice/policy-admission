@@ -113,11 +113,11 @@ type Authorize interface {
 // Filter defines what the authorizer is looking to filter on, or listen to
 type Filter struct {
 	// Group is the api group of the kind - defaults to core
-	Group string
+	Group string `yaml:"group" json:"group"`
 	// Kind is the object kind we looking filter on i.e. (pods, ingresses etc)
-	Kind string
+	Kind string `yaml:"kind" json:"kind"`
 	// IgnoreNamespace indicates you wish to ignore the following namespace
-	IgnoreNamespaces []string
+	IgnoreNamespaces []string `yaml:"ignore-namespaces" json:"ignore-namespaces"`
 	// IgnoreOnFailure indicates you wish to ignore the provider on internal errors
-	IgnoreOnFailure bool
+	IgnoreOnFailure bool `yaml:"ignore-on-failure" json:"ignore-on-failure"`
 }
