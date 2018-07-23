@@ -33,7 +33,11 @@ func (f *Filter) Matched(kind metav1.GroupVersionKind, namespace string) bool {
 		return true
 	}
 	// @check the api group if set is the same
-	if f.Group != "" && f.Group != kind.Group {
+	if f.Group != "" && f.Group != "*" && f.Group != kind.Group {
+		return false
+	}
+	// @check the api version if set
+	if f.Version != "" && f.Version != "*" && f.Version != kind.Version {
 		return false
 	}
 	// @check the version if set

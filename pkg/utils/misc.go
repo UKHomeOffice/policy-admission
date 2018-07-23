@@ -160,6 +160,15 @@ func GetCachedResource(client kubernetes.Interface, ca *cache.Cache, key string,
 	}
 }
 
+// DefaultTo is used to default to a value if zero
+func DefaultTo(v, d string) string {
+	if v == "" {
+		return d
+	}
+
+	return v
+}
+
 // Contained checks if the string exist supports regexs
 func Contained(name string, whitelist []string) bool {
 	for _, x := range whitelist {

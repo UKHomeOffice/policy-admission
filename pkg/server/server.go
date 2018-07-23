@@ -68,6 +68,18 @@ func (c *Admission) Start() error {
 		}
 	}()
 
+	// @step: attempt to register the admission controller
+	if c.config.EnableRegistration {
+		hook, err := c.createAdmissionWebhook()
+		if err != nil {
+			return err
+		}
+
+		if err := c.registerAdmissionController(hook); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
