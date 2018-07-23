@@ -62,6 +62,15 @@ func TestIsFiltered(t *testing.T) {
 			Kind:     metav1.GroupVersionKind{Kind: "Issuer", Group: "certmanager.k8s.io"},
 			Expected: true,
 		},
+		{
+			Filter: Filter{Kind: "Issuer", Group: "certmanager.k8s.io", Version: "alphav1"},
+			Kind:   metav1.GroupVersionKind{Kind: "Issuer", Group: "certmanager.k8s.io"},
+		},
+		{
+			Filter:   Filter{Kind: "Issuer", Group: "certmanager.k8s.io", Version: "alphav1"},
+			Kind:     metav1.GroupVersionKind{Kind: "Issuer", Group: "certmanager.k8s.io", Version: "alphav1"},
+			Expected: true,
+		},
 	}
 	for i, c := range cs {
 		matched := c.Filter.Matched(c.Kind, c.Namespace)

@@ -36,6 +36,10 @@ func (f *Filter) Matched(kind metav1.GroupVersionKind, namespace string) bool {
 	if f.Group != "" && f.Group != kind.Group {
 		return false
 	}
+	// @check the version if set
+	if f.Version != "" && f.Version != kind.Version {
+		return false
+	}
 
 	// @check the kind is the same
 	return f.Kind == kind.Kind

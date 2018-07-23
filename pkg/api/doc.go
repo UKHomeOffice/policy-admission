@@ -114,10 +114,12 @@ type Authorize interface {
 type Filter struct {
 	// Group is the api group of the kind - defaults to core
 	Group string `yaml:"group" json:"group"`
-	// Kind is the object kind we looking filter on i.e. (pods, ingresses etc)
-	Kind string `yaml:"kind" json:"kind"`
 	// IgnoreNamespace indicates you wish to ignore the following namespace
 	IgnoreNamespaces []string `yaml:"ignore-namespaces" json:"ignore-namespaces"`
 	// IgnoreOnFailure indicates you wish to ignore the provider on internal errors
 	IgnoreOnFailure bool `yaml:"ignore-on-failure" json:"ignore-on-failure"`
+	// Kind is the object kind we looking filter on i.e. (pods, ingresses etc)
+	Kind string `yaml:"kind" json:"kind"`
+	// Version defines the api version is required
+	Version string `yaml:"version" json:"version"`
 }
