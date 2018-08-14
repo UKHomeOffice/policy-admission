@@ -38,5 +38,12 @@ func (c *Config) IsValid() error {
 		}
 	}
 
+	// @check if registration is enabled
+	if c.EnableRegistration {
+		if c.ServiceName == "" {
+			return errors.New("service name not specified, required for registration")
+		}
+	}
+
 	return nil
 }

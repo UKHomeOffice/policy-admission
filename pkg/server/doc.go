@@ -52,6 +52,8 @@ type Admission struct {
 
 // Config is the configuration for the service
 type Config struct {
+	// CertificateBundlePath is the file containing the certificate bunlde used for registering
+	CertificateBundlePath string `yaml:"certificate-bundle-path"`
 	// ClusterName is the name of the cluster
 	ClusterName string `yaml:"cluster-name"`
 	// ControllerName is the tags prefix for the anontations
@@ -62,12 +64,19 @@ type Config struct {
 	EnableMetrics bool `yaml:"enable-metrics"`
 	// EnableLogging indicates we want to see the admission request
 	EnableLogging bool `yaml:"enable-logging"`
+	// EnableRegistration indicates the controller should registration webhook
+	EnableRegistration bool `yaml:"enable-registration"`
+	// FailurePolicy is the policy to use when registering
+	FailurePolicy string `yaml:"failure-policy"`
 	// Listen is the interface we are listening on
 	Listen string `yaml:"listen"`
 	// Namespace is the kubernetes namespace we are running in
 	Namespace string `yaml:"namespace"`
 	// RateLimit the duration to the rate limiting
 	RateLimit time.Duration `yaml:"rate-limit"`
+	// ServiceName is the kubernetes service name the admission controller
+	// is running behind used for registration
+	ServiceName string `yaml:"service-name"`
 	// SlackWebHook is the token to speak to slack API
 	SlackWebHook string `yaml:"slack-webhook"`
 	// TLSKey is the path to a private key

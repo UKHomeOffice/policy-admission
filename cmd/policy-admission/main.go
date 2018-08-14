@@ -95,6 +95,23 @@ func main() {
 				EnvVar: "CONTROLLER_NAME",
 				Value:  "policy-admission.acp.homeoffice.gov.uk",
 			},
+			cli.StringFlag{
+				Name:   "admission-service-name",
+				Usage:  "kubernetes service name of the admission controller, used when registering `SERVICE`",
+				EnvVar: "ADMISSION_SERVICE_NAME",
+				Value:  "policy-admission",
+			},
+			cli.StringFlag{
+				Name:   "failure-policy",
+				Usage:  "the failure policy when registering the controller `POLICY`",
+				EnvVar: "FAILURE_POLICY",
+				Value:  "Ignore",
+			},
+			cli.StringFlag{
+				Name:   "certificate-bundle",
+				Usage:  "file containing the certificate authority bundle used when registering `PATH`",
+				EnvVar: "CA_BUNDLE",
+			},
 			cli.BoolFlag{
 				Name:   "enable-logging",
 				Usage:  "indicates you wish to log the admission requests for debugging `BOOL`",
@@ -109,6 +126,11 @@ func main() {
 				Name:   "enable-events",
 				Usage:  "indicates you wish to log kubernetes events on denials `BOOL`",
 				EnvVar: "ENABLE_EVENTS",
+			},
+			cli.BoolFlag{
+				Name:   "enable-registration",
+				Usage:  "indicates you want the admission controller to self-register `BOOL`",
+				EnvVar: "ENABLE_REGISTRATION",
 			},
 			cli.DurationFlag{
 				Name:   "rate-limit",
@@ -136,18 +158,22 @@ func main() {
 			}
 
 			config := &server.Config{
-				ClusterName:    cx.String("cluster"),
-				ControllerName: cx.String("controller-name"),
-				EnableEvents:   cx.Bool("enable-events"),
-				EnableMetrics:  cx.Bool("enable-metrics"),
-				EnableLogging:  cx.Bool("enable-logging"),
-				Listen:         cx.String("listen"),
-				Namespace:      cx.String("namespace"),
-				RateLimit:      cx.Duration("rate-limit"),
-				SlackWebHook:   cx.String("slack-webhook"),
-				TLSCert:        cx.String("tls-cert"),
-				TLSKey:         cx.String("tls-key"),
-				Verbose:        cx.Bool("verbose"),
+				CertificateBundlePath: cx.String("certificate-bundle"),
+				ClusterName:           cx.String("cluster"),
+				ControllerName:        cx.String("controller-name"),
+				EnableEvents:          cx.Bool("enable-events"),
+				EnableLogging:         cx.Bool("enable-logging"),
+				EnableMetrics:         cx.Bool("enable-metrics"),
+				EnableRegistration:    cx.Bool("enable-registration"),
+				FailurePolicy:         cx.String("failure-policy"),
+				Listen:                cx.String("listen"),
+				Namespace:             cx.String("namespace"),
+				RateLimit:             cx.Duration("rate-limit"),
+				ServiceName:           cx.String("admission-service-name"),
+				SlackWebHook:          cx.String("slack-webhook"),
+				TLSCert:               cx.String("tls-cert"),
+				TLSKey:                cx.String("tls-key"),
+				Verbose:               cx.Bool("verbose"),
 			}
 
 			// @step: create the server
