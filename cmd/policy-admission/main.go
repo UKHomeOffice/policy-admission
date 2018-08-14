@@ -97,19 +97,19 @@ func main() {
 			},
 			cli.StringFlag{
 				Name:   "admission-service-name",
-				Usage:  "kuberneres service name of the admission controller, used when registering `SERVICE`",
+				Usage:  "kubernetes service name of the admission controller, used when registering `SERVICE`",
 				EnvVar: "ADMISSION_SERVICE_NAME",
 				Value:  "policy-admission",
 			},
 			cli.StringFlag{
 				Name:   "failure-policy",
-				Usage:  "the failure policy when registering the controler `POLICY`",
+				Usage:  "the failure policy when registering the controller `POLICY`",
 				EnvVar: "FAILURE_POLICY",
 				Value:  "Ignore",
 			},
 			cli.StringFlag{
 				Name:   "certificate-bundle",
-				Usage:  "file container the certificate authority bundle used when registering `PATH`",
+				Usage:  "file containing the certificate authority bundle used when registering `PATH`",
 				EnvVar: "CA_BUNDLE",
 			},
 			cli.BoolFlag{
@@ -130,7 +130,7 @@ func main() {
 			cli.BoolFlag{
 				Name:   "enable-registration",
 				Usage:  "indicates you want the admission controller to self-register `BOOL`",
-				EnvVar: "ENABLE_EVENTS",
+				EnvVar: "ENABLE_REGISTRATION",
 			},
 			cli.DurationFlag{
 				Name:   "rate-limit",
