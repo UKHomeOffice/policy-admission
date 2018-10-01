@@ -40,8 +40,8 @@ func isHosted(ingress *extensions.Ingress, domains []string) bool {
 	return false
 }
 
-// getAWSHostedDomains returns a list of hosted domains or an error
-func getAWSHostedDomains(client route53iface.Route53API) ([]string, error) {
+// getRoute53HostedDomains returns a list of hosted domains or an error
+func getRoute53HostedDomains(client route53iface.Route53API) ([]string, error) {
 	resp, err := client.ListHostedZones(&route53.ListHostedZonesInput{})
 	if err != nil {
 		return []string{}, err

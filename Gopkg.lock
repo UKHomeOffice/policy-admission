@@ -2,6 +2,45 @@
 
 
 [[projects]]
+  digest = "1:b7037e42d48e4659edf2ca7e4e95236174d514053273224c42d091433ccc4b4b"
+  name = "github.com/aws/aws-sdk-go"
+  packages = [
+    "aws",
+    "aws/awserr",
+    "aws/awsutil",
+    "aws/client",
+    "aws/client/metadata",
+    "aws/corehandlers",
+    "aws/credentials",
+    "aws/credentials/ec2rolecreds",
+    "aws/credentials/endpointcreds",
+    "aws/credentials/stscreds",
+    "aws/csm",
+    "aws/defaults",
+    "aws/ec2metadata",
+    "aws/endpoints",
+    "aws/request",
+    "aws/session",
+    "aws/signer/v4",
+    "internal/sdkio",
+    "internal/sdkrand",
+    "internal/sdkuri",
+    "internal/shareddefaults",
+    "private/protocol",
+    "private/protocol/query",
+    "private/protocol/query/queryutil",
+    "private/protocol/rest",
+    "private/protocol/restxml",
+    "private/protocol/xml/xmlutil",
+    "service/route53",
+    "service/route53/route53iface",
+    "service/sts",
+  ]
+  pruneopts = "UT"
+  revision = "a8ff9e4804fc89c994b731b1c057640ab2aecff3"
+  version = "v1.15.45"
+
+[[projects]]
   digest = "1:2daf57e573d4174757646e9d416d25e4dbe4533237961a90b986091a2de12830"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
@@ -39,7 +78,15 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:834165718f3784080169bdd9dcb6f7cb164597849de5fb724c8eaa1f4cc083ec"
+  digest = "1:b98e7574fc27ec166fb31195ec72c3bd0bffd73926d3612eb4c929bc5236f75b"
+  name = "github.com/go-ini/ini"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "7b294651033cd7d9e7f0d9ffa1b75ed1e198e737"
+  version = "v1.38.3"
+
+[[projects]]
+  digest = "1:f83d740263b44fdeef3e1bce6147b5d7283fcad1a693d39639be33993ecf3db1"
   name = "github.com/gogo/protobuf"
   packages = [
     "proto",
@@ -56,7 +103,7 @@
   revision = "44145f04b68cf362d9c4df2182967c2275eaefed"
 
 [[projects]]
-  digest = "1:55dfdd525fbfbe45bb8c2bd3be99cb21cf3e3d9861fadb29fa34ed2f72edf059"
+  digest = "1:8f2df6167daef6f4d56d07f99bbcf4733117db0dedfd959995b9a679c52561f1"
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
@@ -76,7 +123,7 @@
   revision = "44d81051d367757e1c7c6a5a86423ece9afcf63c"
 
 [[projects]]
-  digest = "1:1d6cd25e67e73ad2532c382470a6f89454deb95a34b5c3f925b89b69ad886c9f"
+  digest = "1:75eb87381d25cc75212f52358df9c3a2719584eaa9685cd510ce28699122f39d"
   name = "github.com/googleapis/gnostic"
   packages = [
     "OpenAPIv2",
@@ -98,6 +145,13 @@
   revision = "0fb14efe8c47ae851c0034ed7a448854d3d34cf3"
 
 [[projects]]
+  digest = "1:e22af8c7518e1eab6f2eab2b7d7558927f816262586cd6ed9f349c97a6c285c4"
+  name = "github.com/jmespath/go-jmespath"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "0b12d6b5"
+
+[[projects]]
   digest = "1:8f9110ae8a250da0af248c7d6f78d6244ac86e0afebf16ddd4e6849650bbf2a1"
   name = "github.com/json-iterator/go"
   packages = ["."]
@@ -105,7 +159,7 @@
   revision = "13f86432b882000a51c6e610c620974462691a97"
 
 [[projects]]
-  digest = "1:a38acac568441cb1e09a7cc1f4e1cfd77a5861ef3e458b25742a5cc8faf10f83"
+  digest = "1:09075bb9f05dc50a19c05fcb29a1fba146de7b03b72fd9f6d8d60a9f582e89bf"
   name = "github.com/labstack/echo"
   packages = [
     ".",
@@ -115,7 +169,7 @@
   revision = "fb30777387f27ca69c8e4b163b7448a290a5450c"
 
 [[projects]]
-  digest = "1:2d40813938edf9356f613097fca53fbdde387698c503ce665255a0a1007010fe"
+  digest = "1:89d3b2cc2e6542b111a2f35d76eb35d1bed03f65455ebdb66a2340653da4f8e1"
   name = "github.com/labstack/gommon"
   packages = [
     "bytes",
@@ -173,14 +227,14 @@
   revision = "488edd04dc224ba64c401747cd0a4b5f05dfb234"
 
 [[projects]]
-  digest = "1:807ecadc353783b201253e72be17f5f30dc8030078b05b1554d518b4f47ee8be"
+  digest = "1:9fe8945a11a9f588a9d306b4741cad634da9015a704271b9506810e2cc77fa17"
   name = "github.com/prometheus/client_model"
   packages = ["go"]
   pruneopts = "UT"
   revision = "fa8ad6fec33561be4280a8f0514318c79d7f6cb6"
 
 [[projects]]
-  digest = "1:665a846d608ec63ad8f889bef206425d12351eb3522da3a65ed2446dcd01a674"
+  digest = "1:0d5f8e2195ad2beef202367f3217c4a7981582d96ccf4876b9aa2c5c9c9b3510"
   name = "github.com/prometheus/common"
   packages = [
     "expfmt",
@@ -191,14 +245,14 @@
   revision = "13ba4ddd0caa9c28ca7b7bffe1dfa9ed8d5ef207"
 
 [[projects]]
-  digest = "1:a715a155802d7991a158f1fc586a80d7a83bf53cb5dd49cec91aacf507e5d5e1"
+  digest = "1:0e64768e135f396efaf89fe31905bf3bae46d331dfbe5c52615a0bd9276eb792"
   name = "github.com/prometheus/procfs"
   packages = ["."]
   pruneopts = "UT"
   revision = "abf152e5f3e97f2fafac028d2cc06c1feb87ffa5"
 
 [[projects]]
-  digest = "1:55b13933846a1fb978a6c0e992a4be21963b24908833f3e24f6ead4bcd5412fe"
+  digest = "1:0e5c9074fa7b5a79fa2fd19945c7964d077b7bb6f09e41d053ff97e7e1127601"
   name = "github.com/robertkrimen/otto"
   packages = [
     ".",
@@ -235,7 +289,7 @@
   revision = "4c012f6dcd9546820e378d0bdda4d8fc772cdfea"
 
 [[projects]]
-  digest = "1:d37255e08259439861a87fd39cfedf77fa32453c0c461028826b5430f281a215"
+  digest = "1:3c75451ece0c392569234674e7b7d8238305c0a3d650a3cd1eb652e3e95e0969"
   name = "github.com/stretchr/testify"
   packages = [
     "assert",
@@ -286,7 +340,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ab5254d88b0f9c926ae15b7e04e1a4a01026dce949d9568873048ea4a807499a"
+  digest = "1:2e3d9c2dc9cdeb9c83480fe54dcb9447033e642c0de805132f706e5dfa42e903"
   name = "golang.org/x/crypto"
   packages = [
     "acme",
@@ -297,7 +351,7 @@
   revision = "ab813273cd59e1333f7ae7bff5d027d4aadf528c"
 
 [[projects]]
-  digest = "1:198e8a214e81fea10140850e477ebc23ca2f46cd15c9b46d7cb343a54021b6c0"
+  digest = "1:7f8cf4434657e2b21067f70930402b43144b6ff94022171be5cfcb5924c7f27c"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -310,7 +364,7 @@
   revision = "1c05540f6879653db88113bc4a2b70aec4bd491f"
 
 [[projects]]
-  digest = "1:1c9fe9aa1c7da2a2128f2ed4457147601917bf55b226856d4120e416d4132485"
+  digest = "1:e1a85d3648114c446b2874647bf30f646a8594e7e4e45db87fe962aba60e51f5"
   name = "golang.org/x/sys"
   packages = [
     "unix",
@@ -320,7 +374,7 @@
   revision = "95c6576299259db960f6c5b9b69ea52422860fce"
 
 [[projects]]
-  digest = "1:11e5ba605f499e37162cc8ca25fb16d6ff66fbfdbdc43c92d6f1351cde975413"
+  digest = "1:97337ef8cb438f9e3a99ea91a300e916ed9a96fbf3ad50f9a020d30ea9f8692f"
   name = "golang.org/x/text"
   packages = [
     "internal/gen",
@@ -352,7 +406,7 @@
   version = "v0.9.0"
 
 [[projects]]
-  digest = "1:68d74b9fe9594646dc411e68b85b73b70d861b710570a99e0b2803b5844646b5"
+  digest = "1:9935525a8c49b8434a0b0a54e1980e94a6fae73aaff45c5d33ba8dff69de123e"
   name = "gopkg.in/sourcemap.v1"
   packages = [
     ".",
@@ -370,7 +424,7 @@
   revision = "670d4cfef0544295bc27a114dbac37980d83185a"
 
 [[projects]]
-  digest = "1:0246b29b4a8709d04308befbc9570bf6c893b3a0ebae9cec9346facc886acbc0"
+  digest = "1:b2d957c3d19aeabeb7e1f281078ed65d0845180417c0ca431f5a7947fc673269"
   name = "k8s.io/api"
   packages = [
     "admission/v1beta1",
@@ -407,7 +461,7 @@
   revision = "055879e38033d1526b0fe169089a055c33fa3990"
 
 [[projects]]
-  digest = "1:667f82027b3e1828779fc57bd1f5f86a4ffeebc4d0a8debea68673ac3b125118"
+  digest = "1:b130dee92681fc74c1adf27e3b31b1f3c75310b864fb48e2fbdd87a5559856c4"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/errors",
@@ -453,7 +507,7 @@
   revision = "210bcde8e5a7715fe776460ca1df1a3f2738725e"
 
 [[projects]]
-  digest = "1:ea21d77e491faeb39c1c3ef3b42ba60a53ad621f008c96d97b71707beace0a5b"
+  digest = "1:dc5506c4fd51c20f69c302fc914909b29758d8dda956419ff50a3af573d52a0e"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -542,10 +596,29 @@
   pruneopts = "UT"
   revision = "88e8ea169afa2918712ce2bc64fc1e2d11d72b12"
 
+[[projects]]
+  digest = "1:ac85ee7409f4948501f85905a37b1331279f0500fe5d681b9c512c00bab6dd14"
+  name = "k8s.io/kubernetes"
+  packages = [
+    "pkg/apis/autoscaling",
+    "pkg/apis/core",
+    "pkg/apis/extensions",
+    "pkg/apis/networking",
+    "pkg/apis/policy",
+  ]
+  pruneopts = "UT"
+  revision = "0ed33881dc4355495f623c6f22e7dd0b7632b7c0"
+  version = "v1.12.0"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/aws/aws-sdk-go/aws",
+    "github.com/aws/aws-sdk-go/aws/credentials",
+    "github.com/aws/aws-sdk-go/aws/session",
+    "github.com/aws/aws-sdk-go/service/route53",
+    "github.com/aws/aws-sdk-go/service/route53/route53iface",
     "github.com/fsnotify/fsnotify",
     "github.com/ghodss/yaml",
     "github.com/labstack/echo",
@@ -574,6 +647,7 @@
     "k8s.io/client-go/kubernetes/fake",
     "k8s.io/client-go/rest",
     "k8s.io/client-go/tools/cache",
+    "k8s.io/kubernetes/pkg/apis/extensions",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

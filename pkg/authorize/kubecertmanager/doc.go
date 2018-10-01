@@ -42,7 +42,7 @@ func NewDefaultConfig() *Config {
 	}
 }
 
-// IsHostingDomains checks if we are using the listing of the hosting domains
-func (c *Config) IsHostingDomains() bool {
+// UseRoute53Check checks if we are using the listing of the hosting domains
+func (c *Config) UseRoute53Check() bool {
 	return c.AccessKey != "" && c.SecretKey != ""
 }
