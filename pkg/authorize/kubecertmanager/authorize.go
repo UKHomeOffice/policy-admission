@@ -34,6 +34,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/route53"
 	"github.com/aws/aws-sdk-go/service/route53/route53iface"
 	"github.com/patrickmn/go-cache"
+	log "github.com/sirupsen/logrus"
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
@@ -43,7 +44,7 @@ type resolver interface {
 	GetCNAME(string) (string, error)
 }
 
-const cachedDomains = "domains/route53"
+const cachedDomains = "domains"
 
 type authorizer struct {
 	// config the configuration for the service
@@ -130,13 +131,33 @@ func (c *authorizer) isHostedInternally(ingress *extensions.Ingress) field.Error
 		return append(errs, field.InternalError(field.NewPath(""), fmt.Errorf("unable to retrieve internally hosted domains: %s", err)))
 	}
 
+	log.WithFields(log.Fields{
+		"domains": strings.Join(domains, ","),
+	}).Debug("checking ingress agains the following permitted domains")
+
 	// @step: iterate the list of and check for a match
 	for i, x := range ingress.Spec.Rules {
-		for _, dns := range domains {
-			if !strings.HasSuffix(x.Host, dns) {
-				path := field.NewPath("spec").Child("rules").Index(i).Child("host")
-				errs = append(errs, field.Invalid(path, x.Host, "domain is not hosted internally and thus denied"))
+		if x.Host == "" {
+			continue
+		}
+
+		var found bool
+
+		// @step: check if the domain is hosted is permitted
+		for _, domain := range domains {
+			if domain == "" {
+				continue
 			}
+			if strings.HasSuffix(x.Host, domain) {
+				found = true
+				break
+			}
+		}
+
+		// @step: if not found, alert the domains as invalid
+		if !found {
+			path := field.NewPath("spec").Child("rules").Index(i).Child("host")
+			errs = append(errs, field.Invalid(path, x.Host, "domain is not hosted internally and thus denied"))
 		}
 	}
 
@@ -173,10 +194,16 @@ func (c *authorizer) getHostedDomains() ([]string, error) {
 	// @check the we don't have the value in the cache
 	if hosts, found := c.cached.Get(cachedDomains); !found {
 		err := utils.Retry(3, 100*time.Millisecond, func() error {
+			log.Debug("attempting to request the hosted domains from route53")
+
 			list, err := getRoute53HostedDomains(c.client)
 			if err != nil {
 				return err
 			}
+
+			log.WithFields(log.Fields{
+				"domains": strings.Join(list, ","),
+			}).Debug("found the following domains hosted in the account")
 
 			domains = append(domains, list...)
 
@@ -214,6 +241,7 @@ func New(config *Config) (api.Authorize, error) {
 	}
 
 	svc := &authorizer{
+		cached:  cache.New(10*time.Minute, 1*time.Minute),
 		config:  config,
 		resolve: &resolverImp{},
 	}

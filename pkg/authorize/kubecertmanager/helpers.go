@@ -49,7 +49,7 @@ func getRoute53HostedDomains(client route53iface.Route53API) ([]string, error) {
 
 	var list []string
 	for _, x := range resp.HostedZones {
-		list = append(list, aws.StringValue(x.Name))
+		list = append(list, strings.TrimSuffix(aws.StringValue(x.Name), "."))
 	}
 
 	return list, nil
