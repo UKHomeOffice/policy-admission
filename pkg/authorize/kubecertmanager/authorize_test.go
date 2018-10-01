@@ -21,15 +21,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/UKHomeOffice/policy-admission/pkg/api"
+
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
-
-	"github.com/UKHomeOffice/policy-admission/pkg/api"
 )
 
 func TestNew(t *testing.T) {
@@ -60,14 +59,27 @@ func TestAuthorizer(t *testing.T) {
 			Hosts:       []string{"site.nohere.com"},
 			Errors: field.ErrorList{
 				{
-					Field:    "annotations[stable.k8s.psg.io/kcm.provider]",
-					BadValue: "",
+					Field:    "spec.rules[0].host",
+					BadValue: "site.nohere.com",
 					Type:     field.ErrorTypeInvalid,
-					Detail:   "one or more domains in the ingress are externally hosted, you must use a http challenge",
+					Detail:   "domain is not hosted internally and thus denied",
 				},
 			},
 		},
-		"check an externaly host is denied no invalid challenge": {
+		"check an ingress is allowed when inside the allowed list": {
+			Annotations: map[string]string{"kubernetes.io/ingress.class": "nginx-external"},
+			Labels:      map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
+			Hosts:       []string{"site.example.com"},
+		},
+		"check an ingress is allowed with a dns annontation and allowed list": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class":    "nginx-external",
+				"stable.k8s.psg.io/kcm.provider": "dns",
+			},
+			Labels: map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
+			Hosts:  []string{"site.example.com"},
+		},
+		"check an externaly host is denied invalid challenge type": {
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class":    "nginx-external",
 				"stable.k8s.psg.io/kcm.provider": "bad",
@@ -156,8 +168,9 @@ func newTestAuthorizer(t *testing.T, config *Config) *testAuthorizer {
 	}
 	c, err := New(config)
 	c.(*authorizer).resolve = &testResolver{}
-
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unable to create authorizer: %s", err)
+	}
 
 	return &testAuthorizer{config: config, svc: c}
 }

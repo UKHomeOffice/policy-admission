@@ -22,10 +22,17 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/route53"
+	"github.com/aws/aws-sdk-go/service/route53/route53iface"
+	"github.com/patrickmn/go-cache"
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
@@ -35,11 +42,17 @@ type resolver interface {
 	GetCNAME(string) (string, error)
 }
 
+const cachedDomains = "domains/route53"
+
 type authorizer struct {
 	// config the configuration for the service
 	config *Config
 	// resolve is a dns resolver
 	resolve resolver
+	// client is the route53 client
+	client route53iface.Route53API
+	// cached is a small in-memory cache
+	cached *cache.Cache
 }
 
 // Admit is responsible for authorizing the ingress for kube-cert-manager
@@ -51,7 +64,6 @@ func (c *authorizer) Admit(_ context.Context, cx *api.Context) field.ErrorList {
 		return append(errs, field.InternalError(field.NewPath("object"), errors.New("invalid object, expected Ingress")))
 	}
 
-	// @step: validate the ingress is ok for kube-cert-manager
 	return c.validateIngress(ingress)
 }
 
@@ -59,31 +71,27 @@ func (c *authorizer) Admit(_ context.Context, cx *api.Context) field.ErrorList {
 func (c *authorizer) validateIngress(ingress *extensions.Ingress) field.ErrorList {
 	var errs field.ErrorList
 
-	label := "stable.k8s.psg.io/kcm.class"
-	class := "default"
-
 	// @check is this ingress has kube-cert-manager is enabled
-	if value, found := ingress.GetLabels()[label]; !found || value != class {
+	if value, found := ingress.GetLabels()["stable.k8s.psg.io/kcm.class"]; !found || value != "default" {
 		return errs
 	}
 
-	// @check if the domain is not within the internally hosts domain
-	if hosted := c.isHosted(ingress); hosted {
-		// @check we are not trying to use a http challenge
-		return errs
+	// @check if the domain is not within the internally hosts domain i.e. the provider is missing or set to dns
+	if value, found := ingress.GetAnnotations()["stable.k8s.psg.io/kcm.provider"]; !found || value == "dns" {
+		return c.isHostedInternally(ingress)
 	}
 
 	// @logic: else the domain it's requesting is outside of the internally hosted domain/s
 
-	label = "stable.k8s.psg.io/kcm.provider"
-	class = "http"
+	label := "stable.k8s.psg.io/kcm.provider"
+	class := "http"
 	annontations := ingress.GetAnnotations()
 
 	// @check we have http challenge enabled
-	if value, found := annontations[label]; !found {
+	if value, found := annontations["stable.k8s.psg.io/kcm.provider"]; !found {
 		return append(errs, field.Invalid(field.NewPath("annotations").Key(label), value,
 			"one or more domains in the ingress are externally hosted, you must use a http challenge"))
-	} else if value != class {
+	} else if value != "http" {
 		return append(errs, field.Invalid(field.NewPath("annotations").Key(label), value,
 			fmt.Sprintf("invalid kube-cert-manager provider type: %s, expected: %s", value, class)))
 	}
@@ -111,17 +119,27 @@ func (c *authorizer) validateIngress(ingress *extensions.Ingress) field.ErrorLis
 	return errs
 }
 
-// isHosted checks the domain is hosted by us
-func (c *authorizer) isHosted(ingress *extensions.Ingress) bool {
-	for _, x := range ingress.Spec.Rules {
-		for _, dns := range c.config.HostedDomains {
-			if strings.HasSuffix(x.Host, dns) {
-				return true
+// isHostedInternally checks the domain is hosted by us - i.e. within a zone we control
+func (c *authorizer) isHostedInternally(ingress *extensions.Ingress) field.ErrorList {
+	var errs field.ErrorList
+
+	// @step: retrieve the list to domains we are hosting
+	domains, err := c.getHostedDomains()
+	if err != nil {
+		return append(errs, field.InternalError(field.NewPath(""), fmt.Errorf("unable to retrieve internally hosted domains: %s", err)))
+	}
+
+	// @step: iterate the list of and check for a match
+	for i, x := range ingress.Spec.Rules {
+		for _, dns := range domains {
+			if !strings.HasSuffix(x.Host, dns) {
+				path := field.NewPath("spec").Child("rules").Index(i).Child("host")
+				errs = append(errs, field.Invalid(path, x.Host, "domain is not hosted internally and thus denied"))
 			}
 		}
 	}
 
-	return false
+	return errs
 }
 
 // isIngressPointed is responisble for checking the dns hostname is pointed to the external ingress
@@ -138,6 +156,41 @@ func (c *authorizer) isIngressPointed(ingress *extensions.Ingress) (field.ErrorL
 	}
 
 	return errs, nil
+}
+
+// getHostedDomains returns a list of hosted domains
+func (c *authorizer) getHostedDomains() ([]string, error) {
+	var domains []string
+
+	domains = append(domains, c.config.HostedDomains...)
+
+	// @check is no access or secret key we default to hostdomains only
+	if !c.config.UseRoute53Check() {
+		return domains, nil
+	}
+
+	// @check the we don't have the value in the cache
+	if hosts, found := c.cached.Get(cachedDomains); !found {
+		err := utils.Retry(3, 100*time.Millisecond, func() error {
+			list, err := getRoute53HostedDomains(c.client)
+			if err != nil {
+				return err
+			}
+
+			domains = append(domains, list...)
+
+			c.cached.Set(cachedDomains, list, 3*time.Minute)
+
+			return nil
+		})
+		if err != nil {
+			return []string{}, err
+		}
+	} else {
+		domains = append(domains, hosts.([]string)...)
+	}
+
+	return domains, nil
 }
 
 // Name is the authorizer
@@ -159,10 +212,19 @@ func New(config *Config) (api.Authorize, error) {
 		config = NewDefaultConfig()
 	}
 
-	return &authorizer{
+	svc := &authorizer{
 		config:  config,
 		resolve: &resolverImp{},
-	}, nil
+	}
+
+	if config.UseRoute53Check() {
+		svc.client = route53.New(session.Must(
+			session.NewSession(&aws.Config{
+				Credentials: credentials.NewStaticCredentials(config.AccessKey, config.SecretKey, ""),
+			})))
+	}
+
+	return svc, nil
 }
 
 // NewFromFile reads the configuration path and returns the authorizer
