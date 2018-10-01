@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -220,7 +221,8 @@ func New(config *Config) (api.Authorize, error) {
 	if config.UseRoute53Check() {
 		svc.client = route53.New(session.Must(
 			session.NewSession(&aws.Config{
-				Credentials: credentials.NewStaticCredentials(config.AccessKey, config.SecretKey, ""),
+				Credentials: credentials.NewStaticCredentials(os.Getenv(kubeCertAccessID), os.Getenv(kubeCertSecretID), ""),
+				Region:      aws.String("AWS_DEFAULT_REGION"),
 			})))
 	}
 
