@@ -25,6 +25,7 @@ import (
 
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -137,12 +138,65 @@ func TestAuthorizer(t *testing.T) {
 			Hosts:    []string{"site.nohere.com"},
 			Resolves: config.ExternalIngressHostname,
 		},
+		"check a ingress is permitted when the dns check is disabled": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class":    "nginx-external",
+				"stable.k8s.psg.io/kcm.provider": "http",
+			},
+			Namespace: map[string]string{
+				"policy-admission.acp.homeoffice.gov.uk/kubecertmanager/enable-dns-check": "false",
+			},
+			Labels:   map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
+			Hosts:    []string{"site.nohere.com"},
+			Resolves: "bad.hostname",
+		},
+		"check a ingress is denied when dns check is enabled": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class":    "nginx-external",
+				"stable.k8s.psg.io/kcm.provider": "http",
+			},
+			Namespace: map[string]string{
+				"policy-admission.acp.homeoffice.gov.uk/kubecertmanager/enable-dns-check": "true",
+			},
+			Labels:   map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
+			Hosts:    []string{"site.nohere.com"},
+			Resolves: "bad.hostname",
+			Errors: field.ErrorList{
+				{
+					Field:    "spec.rules[0].host",
+					BadValue: "site.nohere.com",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "the hostname: site.nohere.com is not pointed to the external ingress dns name ingress.acp.example.com",
+				},
+			},
+		},
+		"check a deault value of dns check is true": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class":    "nginx-external",
+				"stable.k8s.psg.io/kcm.provider": "http",
+			},
+			Namespace: map[string]string{
+				"policy-admission.acp.homeoffice.gov.uk/kubecertmanager/enable-dns-check": "bad_value",
+			},
+			Labels:   map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
+			Hosts:    []string{"site.nohere.com"},
+			Resolves: "bad.hostname",
+			Errors: field.ErrorList{
+				{
+					Field:    "spec.rules[0].host",
+					BadValue: "site.nohere.com",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "the hostname: site.nohere.com is not pointed to the external ingress dns name ingress.acp.example.com",
+				},
+			},
+		},
 	}
 	newTestAuthorizer(t, config).runChecks(t, checks)
 }
 
 type kubeCertCheck struct {
 	Annotations map[string]string
+	Namespace   map[string]string
 	Errors      field.ErrorList
 	Hosts       []string
 	Labels      map[string]string
@@ -178,6 +232,13 @@ func newTestAuthorizer(t *testing.T, config *Config) *testAuthorizer {
 func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]kubeCertCheck) {
 	for desc, check := range checks {
 		cx := newTestContext()
+
+		cx.Client.CoreV1().Namespaces().Create(&v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "test",
+				Annotations: check.Namespace,
+			},
+		})
 
 		if check.Resolves != "" {
 			c.svc.(*authorizer).resolve = &testResolver{hostname: check.Resolves}
