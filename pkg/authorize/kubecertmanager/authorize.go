@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -66,11 +67,11 @@ func (c *authorizer) Admit(_ context.Context, cx *api.Context) field.ErrorList {
 		return append(errs, field.InternalError(field.NewPath("object"), errors.New("invalid object, expected Ingress")))
 	}
 
-	return c.validateIngress(ingress)
+	return c.validateIngress(cx, ingress)
 }
 
 // validateIngress checks the the image complys with policy
-func (c *authorizer) validateIngress(ingress *extensions.Ingress) field.ErrorList {
+func (c *authorizer) validateIngress(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
 	var errs field.ErrorList
 
 	// @check is this ingress has kube-cert-manager is enabled
@@ -110,13 +111,28 @@ func (c *authorizer) validateIngress(ingress *extensions.Ingress) field.ErrorLis
 			fmt.Sprintf("invalid kube-cert-manager provider, expected '%s' for a http challenge", class)))
 	}
 
-	// @check the dns for the hostnames are pointing to the cname of the external ingress controller
-	pointed, err := c.isIngressPointed(ingress)
+	// @step: get namespace for this object
+	namespace, err := utils.GetCachedNamespace(cx.Client, cx.Cache, ingress.Namespace)
 	if err != nil {
-		return append(errs, field.InternalError(field.NewPath("dns validation"), fmt.Errorf("failed to check for dns validation: %s", err)))
+		return append(errs, field.InternalError(field.NewPath("namespace"), err))
 	}
 
-	errs = append(errs, pointed...)
+	enableDNSCheck := true
+	if v, found := namespace.GetAnnotations()[cx.Annotation(EnableDNSCheck)]; found {
+		if b, err := strconv.ParseBool(v); err == nil {
+			enableDNSCheck = b
+		}
+	}
+
+	if enableDNSCheck {
+		// @check the dns for the hostnames are pointing to the cname of the external ingress controller
+		pointed, err := c.isIngressPointed(ingress)
+		if err != nil {
+			return append(errs, field.InternalError(field.NewPath("dns validation"), fmt.Errorf("failed to check for dns validation: %s", err)))
+		}
+
+		errs = append(errs, pointed...)
+	}
 
 	return errs
 }

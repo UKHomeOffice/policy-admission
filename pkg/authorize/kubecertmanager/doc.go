@@ -21,6 +21,8 @@ import "os"
 const (
 	// Name is the name of the authorizer
 	Name = "kubecertmanager"
+	// EnableDNSCheck annontation controls the dns checker
+	EnableDNSCheck = Name + "/enable-dns-check"
 )
 
 const (

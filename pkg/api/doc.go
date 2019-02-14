@@ -92,8 +92,7 @@ type Context struct {
 
 // Annotation returns a annotation name
 func (c *Context) Annotation(names ...string) string {
-	paths := []string{c.Prefix}
-	paths = append(paths, names...)
+	paths := append([]string{c.Prefix}, names...)
 
 	return filepath.Join(paths...)
 }
