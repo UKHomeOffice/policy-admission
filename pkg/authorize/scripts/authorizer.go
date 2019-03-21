@@ -157,7 +157,7 @@ func (c *authorizer) FilterOn() *api.Filter {
 
 // Name returns the name of the provider
 func (c *authorizer) Name() string {
-	return Name
+	return c.config.Name
 }
 
 // New creates and returns an authorizer
@@ -179,7 +179,12 @@ func NewFromFile(path string) (api.Authorize, error) {
 		return nil, err
 	}
 	if cfg.FilterOn.Kind == "" {
-		return nil, errors.New("no kind to filter on")
+		cfg.FilterOn.Kind = api.FilterAll
+	}
+	if len(cfg.IgnoreNamespaces) != 0 {
+		cfg.FilterOn.IgnoreNamespaces = cfg.IgnoreNamespaces
+	} else {
+		cfg.FilterOn.IgnoreNamespaces = []string{"kube-system", "kube-public", "kube-admission"}
 	}
 
 	return New(cfg)
