@@ -12,7 +12,7 @@ USAGE:
     [global options] command [command options] [arguments...]
 
 VERSION:
-   v0.0.23 (git+sha: 201138f-dirty)
+   v0.1.0 (git+sha: fa934ac)
 
 AUTHOR:
    Rohith Jayawardene <gambol99@gmail.com>
@@ -72,7 +72,7 @@ function isFiltering(o) {
 
 if (isFiltering(object)) {
   // do some logic
-  provider = o.metadata.annotations["ingress.kubernetes.io/provider"]
+  provider = object.metadata.annotations["ingress.kubernetes.io/provider"]
   if (provider != "http") {
     deny("metadata.annotations[ingress.kubernetes.io/provider]", "you must use a http provider", provider)
   }
@@ -217,4 +217,3 @@ metadata:
 #### **Controller Name**
 
 You can alter the controller prefix by using the `--controller-name` option which sets the prefix for the annotations across all the authorizers.
-
