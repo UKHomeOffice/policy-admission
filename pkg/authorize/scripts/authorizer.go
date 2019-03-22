@@ -27,12 +27,9 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
-	"github.com/patrickmn/go-cache"
 	"github.com/robertkrimen/otto"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/kubernetes"
 )
 
 var errTimeout = errors.New("operation timed out")
@@ -47,15 +44,8 @@ type authorizer struct {
 func (c *authorizer) Admit(ctx context.Context, cx *api.Context) field.ErrorList {
 	var errs field.ErrorList
 
-	return append(errs, c.validateObject(ctx, cx.Client, cx.Cache, cx.Object)...)
-}
-
-// validateObject is responsible for validating the values on an object
-func (c *authorizer) validateObject(ctx context.Context, client kubernetes.Interface, mcache *cache.Cache, object metav1.Object) field.ErrorList {
-	var errs field.ErrorList
-
 	// @step: get namespace for this object
-	namespace, err := utils.GetCachedNamespace(client, mcache, object.GetNamespace())
+	namespace, err := utils.GetCachedNamespace(cx.Client, cx.Cache, cx.Object.GetNamespace())
 	if err != nil {
 		return append(errs, field.InternalError(field.NewPath("namespace"), err))
 	}
@@ -63,10 +53,18 @@ func (c *authorizer) validateObject(ctx context.Context, client kubernetes.Inter
 	// @step: decode the object into an object
 	// @TODO there probably a better way of doing the, perhaps just passing the object??
 	err = func() error {
-		obj, err := marshal(object)
+		obj, err := marshal(cx.Object)
 		if err != nil {
 			return err
 		}
+		// @note: a somewhat hacky but's its due to the fact the groupkind is omitted
+		if _, found := obj["apiVersion"]; !found {
+			obj["apiVersion"] = fmt.Sprintf("%s/%s", cx.Group.Group, cx.Group.Version)
+		}
+		if _, found := obj["kind"]; !found {
+			obj["kind"] = cx.Group.Kind
+		}
+
 		ns, err := marshal(namespace)
 		if err != nil {
 			return err
@@ -77,7 +75,7 @@ func (c *authorizer) validateObject(ctx context.Context, client kubernetes.Inter
 		for k, v := range c.config.Options {
 			vm.Set(k, v)
 		}
-		vm.Set("cache", mcache)
+		vm.Set("cache", cx.Cache)
 		vm.Set("namespace", ns)
 		vm.Set("object", obj)
 

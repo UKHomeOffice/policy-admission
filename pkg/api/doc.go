@@ -84,6 +84,8 @@ type Context struct {
 	Cache *cache.Cache
 	// Client is a kubernetes client
 	Client kubernetes.Interface
+	// Group is the apigroup
+	Group metav1.GroupVersionKind
 	// Object is the object we are validating
 	Object metav1.Object
 	// Prefix the controller prefix
