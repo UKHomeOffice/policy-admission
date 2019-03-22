@@ -129,6 +129,7 @@ func (c *Admission) authorizeResource(ctx context.Context, object metav1.Object,
 	cx := &api.Context{
 		Cache:  c.resourceCache,
 		Client: c.client,
+		Group:  kind,
 		Object: object,
 		Prefix: c.config.ControllerName,
 	}
