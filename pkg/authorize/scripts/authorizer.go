@@ -44,15 +44,9 @@ type authorizer struct {
 func (c *authorizer) Admit(ctx context.Context, cx *api.Context) field.ErrorList {
 	var errs field.ErrorList
 
-	// @step: get namespace for this object
-	namespace, err := utils.GetCachedNamespace(cx.Client, cx.Cache, cx.Object.GetNamespace())
-	if err != nil {
-		return append(errs, field.InternalError(field.NewPath("namespace"), err))
-	}
-
 	// @step: decode the object into an object
 	// @TODO there probably a better way of doing the, perhaps just passing the object??
-	err = func() error {
+	err := func() error {
 		obj, err := marshal(cx.Object)
 		if err != nil {
 			return err
@@ -65,19 +59,26 @@ func (c *authorizer) Admit(ctx context.Context, cx *api.Context) field.ErrorList
 			obj["kind"] = cx.Group.Kind
 		}
 
-		ns, err := marshal(namespace)
-		if err != nil {
-			return err
-		}
-
 		// @step: create the runtime
 		vm := otto.New()
 		for k, v := range c.config.Options {
 			vm.Set(k, v)
 		}
 		vm.Set("cache", cx.Cache)
-		vm.Set("namespace", ns)
 		vm.Set("object", obj)
+
+		if cx.Object.GetNamespace() != "" {
+			// @step: get namespace for this object
+			namespace, err := utils.GetCachedNamespace(cx.Client, cx.Cache, cx.Object.GetNamespace())
+			if err != nil {
+				return err
+			}
+			ns, err := marshal(namespace)
+			if err != nil {
+				return err
+			}
+			vm.Set("namespace", ns)
+		}
 
 		// @step: setup some functions
 		vm.Set("log", func(call otto.FunctionCall) otto.Value {
