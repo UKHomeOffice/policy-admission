@@ -159,6 +159,14 @@
   revision = "13f86432b882000a51c6e610c620974462691a97"
 
 [[projects]]
+  digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "f55edac94c9bbba5d6182a4be46d86a2c9b5b50e"
+  version = "v1.0.2"
+
+[[projects]]
   digest = "1:09075bb9f05dc50a19c05fcb29a1fba146de7b03b72fd9f6d8d60a9f582e89bf"
   name = "github.com/labstack/echo"
   packages = [
@@ -275,11 +283,12 @@
   version = "v1.2.0"
 
 [[projects]]
-  digest = "1:48d6e959d636da4e7e6925f2f1f401438d78d657471893d3698027277961b9e3"
+  digest = "1:e4c72127d910a96daf869a44f3dd563b86dbe6931a172863a0e99c5ff04b59e4"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   pruneopts = "UT"
-  revision = "f4ee69125072b22721efbe639bd0da9c9d19b8cc"
+  revision = "dae0fa8d5b0c810a8ab733fbd5510c7cae84eca4"
+  version = "v1.4.0"
 
 [[projects]]
   digest = "1:772bf4d1907ccb275aaa532ec6cb0d85fc61bd05648af28551590af3ea4e2d53"

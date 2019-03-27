@@ -38,6 +38,7 @@ import (
 
 func init() {
 	log.SetFormatter(&log.JSONFormatter{})
+	log.SetReportCaller(true)
 }
 
 // Start is repsonsible for starting the service up
