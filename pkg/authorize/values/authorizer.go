@@ -141,8 +141,9 @@ func (c *authorizer) FilterOn() *api.Filter {
 	}
 
 	return &api.Filter{
-		IgnoreNamespaces: c.config.IgnoreNamespaces,
-		Kind:             filter,
+		IgnoreNamespaces:      c.config.IgnoreNamespaces,
+		IgnoreNamespaceLabels: c.config.IgnoreNamespaceLabels,
+		Kind:                  filter,
 	}
 }
 

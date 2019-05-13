@@ -117,6 +117,8 @@ type Filter struct {
 	Group string `yaml:"group" json:"group"`
 	// IgnoreNamespace indicates you wish to ignore the following namespace
 	IgnoreNamespaces []string `yaml:"ignore-namespaces" json:"ignore-namespaces"`
+	// IgnoreNamespaceLabels indicates a set of labels to ignore
+	IgnoreNamespaceLabels map[string]string `yaml:"ignore-namespace-labels" json:"ignore-namespace-labels"`
 	// IgnoreOnFailure indicates you wish to ignore the provider on internal errors
 	IgnoreOnFailure bool `yaml:"ignore-on-failure" json:"ignore-on-failure"`
 	// Kind is the object kind we looking filter on i.e. (pods, ingresses etc)

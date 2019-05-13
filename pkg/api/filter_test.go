@@ -20,15 +20,20 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func makeTestNamespace(name string, labels map[string]string) *v1.Namespace {
+	return &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels}}
+}
 
 func TestIsFiltered(t *testing.T) {
 	cs := []struct {
 		Expected  bool
 		Filter    Filter
 		Kind      metav1.GroupVersionKind
-		Namespace string
+		Namespace *v1.Namespace
 	}{
 		{
 			Filter:   Filter{Kind: FilterPods},
@@ -38,14 +43,38 @@ func TestIsFiltered(t *testing.T) {
 		{
 			Filter:    Filter{Kind: FilterPods, IgnoreNamespaces: []string{"test"}},
 			Kind:      metav1.GroupVersionKind{Kind: FilterPods, Group: "v1"},
-			Namespace: "test",
+			Namespace: makeTestNamespace("test", nil),
 			Expected:  false,
 		},
 		{
 			Filter:    Filter{Kind: FilterPods, IgnoreNamespaces: []string{"test"}},
 			Kind:      metav1.GroupVersionKind{Kind: FilterPods, Group: "v1"},
-			Namespace: "test1",
+			Namespace: makeTestNamespace("test1", nil),
 			Expected:  true,
+		},
+		{
+			Filter:    Filter{Kind: FilterPods, IgnoreNamespaces: []string{"test"}, IgnoreNamespaceLabels: map[string]string{"skip": "me"}},
+			Kind:      metav1.GroupVersionKind{Kind: FilterPods, Group: "v1"},
+			Namespace: makeTestNamespace("test1", map[string]string{"skip": "me"}),
+			Expected:  false,
+		},
+		{
+			Filter:    Filter{Kind: FilterPods, IgnoreNamespaces: []string{"test"}, IgnoreNamespaceLabels: map[string]string{"skip": "me"}},
+			Kind:      metav1.GroupVersionKind{Kind: FilterPods, Group: "v1"},
+			Namespace: makeTestNamespace("test1", map[string]string{"skip": "nothing"}),
+			Expected:  true,
+		},
+		{
+			Filter:    Filter{Kind: FilterPods, IgnoreNamespaces: []string{"test"}, IgnoreNamespaceLabels: map[string]string{"skip": "me", "skip1": "true"}},
+			Kind:      metav1.GroupVersionKind{Kind: FilterPods, Group: "v1"},
+			Namespace: makeTestNamespace("test1", map[string]string{"skip": "me"}),
+			Expected:  true,
+		},
+		{
+			Filter:    Filter{Kind: FilterPods, IgnoreNamespaces: []string{"test"}, IgnoreNamespaceLabels: map[string]string{"skip": "me", "skip1": "true"}},
+			Kind:      metav1.GroupVersionKind{Kind: FilterPods, Group: "v1"},
+			Namespace: makeTestNamespace("test1", map[string]string{"skip": "me", "skip1": "true"}),
+			Expected:  false,
 		},
 		{
 			Filter:   Filter{Kind: FilterPods},

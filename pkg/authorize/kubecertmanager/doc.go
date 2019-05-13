@@ -36,6 +36,8 @@ type Config struct {
 	ExternalIngressHostname string `yaml:"external-ingress-hostname" json:"external-ingress-hostname"`
 	// IgnoredNamespaces is a list namespaces to ignore
 	IgnoreNamespaces []string `yaml:"ignored-namespaces" json:"ignored-namespaces"`
+	// IgnoreNamespaceLabels is a list keypairs to ignore
+	IgnoreNamespaceLabels map[string]string `yaml:"ignore-namespace-labels" json:"ignore-namespace-labels"`
 	// HostedDomains is a list of hosted domains we can add records for
 	HostedDomains []string `yaml:"hosted-domains" json:"hosted-domains"`
 }

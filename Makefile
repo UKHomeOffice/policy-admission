@@ -11,7 +11,7 @@ VERSION ?= $(shell awk '/Version.*=/ { print $$3 }' cmd/policy-admission/main.go
 DEPS=$(shell go list -f '{{range .TestImports}}{{.}} {{end}}' ./...)
 PACKAGES=$(shell go list ./...)
 LFLAGS ?= -X main.GitSHA=${GIT_SHA}
-VETARGS ?= -asmdecl -atomic -bool -buildtags -copylocks -methods -nilfunc -printf -rangeloops -structtags -unsafeptr
+VETARGS ?= -asmdecl -atomic -bool -buildtags -copylocks -methods -nilfunc -printf -rangeloops -unsafeptr
 
 .PHONY: test authors changelog build docker static release lint cover vet glide-install version
 

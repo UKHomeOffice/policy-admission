@@ -61,6 +61,8 @@ var (
 type Config struct {
 	// IgnoreNamespaces is list of namespace to
 	IgnoreNamespaces []string `yaml:"ignored-namespaces" json:"ignored-namespaces"`
+	// IgnoreNamespaceLabels is a list keypairs to ignore
+	IgnoreNamespaceLabels map[string]string `yaml:"ignore-namespace-labels" json:"ignore-namespace-labels"`
 	// FilterOn indicates what you want to filter on
 	FilterOn string `yaml:"filter-on" json:"filter-on"`
 	// Matches is a collection of matches
