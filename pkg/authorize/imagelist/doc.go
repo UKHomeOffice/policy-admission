@@ -25,6 +25,8 @@ type Config struct {
 	SkipTLSVerify bool `yaml:"skip-tls-verify" json:"skip-tls-verify"`
 	// IgnoredNamespaces is a list namespaces to ignore
 	IgnoreNamespaces []string `yaml:"ignore-namespaces" json:"ignore-namespaces"`
+	// IgnoreNamespaceLabels is a list keypairs to ignore
+	IgnoreNamespaceLabels map[string]string `yaml:"ignore-namespace-labels" json:"ignore-namespace-labels"`
 	// Timeout is the duration between timing out
 	Timeout time.Duration `yaml:"timeout" json:"timeout"`
 	// Token is a bearer token to use on requests

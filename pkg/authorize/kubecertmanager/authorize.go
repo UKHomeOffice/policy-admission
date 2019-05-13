@@ -245,8 +245,9 @@ func (c *authorizer) Name() string {
 // FilterOn returns the authorizer handle
 func (c *authorizer) FilterOn() *api.Filter {
 	return &api.Filter{
-		IgnoreNamespaces: c.config.IgnoreNamespaces,
-		Kind:             api.FilterIngresses,
+		IgnoreNamespaces:      c.config.IgnoreNamespaces,
+		IgnoreNamespaceLabels: c.config.IgnoreNamespaceLabels,
+		Kind:                  api.FilterIngresses,
 	}
 }
 

@@ -25,6 +25,8 @@ const (
 type Config struct {
 	// IgnoreNamespaces is list of namespace to
 	IgnoreNamespaces []string `yaml:"ignored-namespaces" json:"ignored-namespaces"`
+	// IgnoreNamespaceLabels is a list keypairs to ignore
+	IgnoreNamespaceLabels map[string]string `yaml:"ignore-namespace-labels" json:"ignore-namespace-labels"`
 }
 
 // NewDefaultConfig is the default configuration

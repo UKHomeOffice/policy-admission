@@ -25,6 +25,8 @@ const (
 type Config struct {
 	// IgnoredNamespaces is a list namespaces to ignore
 	IgnoreNamespaces []string `yaml:"ignored-namespaces" json:"ignored-namespaces"`
+	// IgnoreNamespaceLabels is a list keypairs to ignore
+	IgnoreNamespaceLabels map[string]string `yaml:"ignore-namespace-labels" json:"ignore-namespace-labels"`
 	// ImagePolicies is a collection of regexs
 	ImagePolicies []string `yaml:"image-policies" json:"image-policies"`
 }

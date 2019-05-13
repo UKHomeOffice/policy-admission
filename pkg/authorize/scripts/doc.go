@@ -31,6 +31,8 @@ const (
 type Config struct {
 	// IgnoreNamespaces is list of namespaces to ignore
 	IgnoreNamespaces []string `yaml:"ignored-namespaces" json:"ignored-namespaces"`
+	// IgnoreNamespaceLabels is a list keypairs to ignore
+	IgnoreNamespaceLabels map[string]string `yaml:"ignore-namespace-labels" json:"ignore-namespace-labels"`
 	// FilterOn is the kind of object you wish to filter on
 	FilterOn api.Filter `yaml:"filter-on" json:"filter-on"`
 	// Options is contextual options passed into the authorizer

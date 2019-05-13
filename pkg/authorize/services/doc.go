@@ -29,6 +29,8 @@ const (
 type Config struct {
 	// IgnoreNamespaces is list of namespace to
 	IgnoreNamespaces []string `yaml:"ignored-namespaces" json:"ignored-namespaces"`
+	// IgnoreNamespaceLabels is a list keypairs to ignore
+	IgnoreNamespaceLabels map[string]string `yaml:"ignore-namespace-labels" json:"ignore-namespace-labels"`
 	// Whitelist is default whitelist applied to all namespaces
 	Whitelist []string `yaml:"whitelist" json:"whitelist"`
 }

@@ -28,6 +28,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	admission "k8s.io/api/admission/v1beta1"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
@@ -136,8 +137,18 @@ func (c *Admission) authorizeResource(ctx context.Context, object metav1.Object,
 
 	// @step: iterate the authorizers and fail on first refusal
 	for i, provider := range c.providers {
+		var namespace *v1.Namespace
+
+		if object.GetNamespace() != "" {
+			n, err := utils.GetCachedNamespace(c.client, c.resourceCache, object.GetNamespace())
+			if err != nil {
+				return false, "", err
+			}
+			namespace = n
+		}
+
 		// @check if this authorizer is listening to this type
-		if !provider.FilterOn().Matched(kind, object.GetNamespace()) {
+		if !provider.FilterOn().Matched(kind, namespace) {
 			log.WithFields(log.Fields{
 				"group":     kind.Group,
 				"id":        utils.GetTRX(ctx),
