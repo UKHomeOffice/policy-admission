@@ -28,7 +28,7 @@ const (
 // Config is the configuration for the taint authorizer
 type Config struct {
 	// IgnoreNamespaces is list of namespace to
-	IgnoreNamespaces []string `yaml:"ignored-namespaces" json:"ignored-namespaces"`
+	IgnoreNamespaces []string `yaml:"ignore-namespaces" json:"ignore-namespaces"`
 	// IgnoreNamespaceLabels is a list keypairs to ignore
 	IgnoreNamespaceLabels map[string]string `yaml:"ignore-namespace-labels" json:"ignore-namespace-labels"`
 	// DefaultWhitelist is default whitelist applied to all unless a namespace has one
