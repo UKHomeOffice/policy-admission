@@ -35,7 +35,7 @@ type Config struct {
 	// ExternalIngressHostname is the dns hostname which external ingresses should be pointing to
 	ExternalIngressHostname string `yaml:"external-ingress-hostname" json:"external-ingress-hostname"`
 	// IgnoredNamespaces is a list namespaces to ignore
-	IgnoreNamespaces []string `yaml:"ignored-namespaces" json:"ignored-namespaces"`
+	IgnoreNamespaces []string `yaml:"ignore-namespaces" json:"ignore-namespaces"`
 	// IgnoreNamespaceLabels is a list keypairs to ignore
 	IgnoreNamespaceLabels map[string]string `yaml:"ignore-namespace-labels" json:"ignore-namespace-labels"`
 	// HostedDomains is a list of hosted domains we can add records for
