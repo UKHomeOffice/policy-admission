@@ -1,4 +1,3 @@
-
 ## **Kubernetes Policy Admission Controller**
 
 The [policy-admission](https://github.com/UKHomeOffice/policy-admission) is a [custom admission controller](https://kubernetes.io/docs/admin/extensible-admission-controllers/) used to enforce a collection of security and administrative policies across our kubernetes clusters. Each of the authorizers (https://github.com/UKHomeOffice/policy-admission/tree/master/pkg/authorize) are enabled individually via the command option --authorizer=NAME:CONFIG_PATH (note if no configuration path is given we use the default configuration for that authorizer).
