@@ -4,12 +4,27 @@ workspace:
 
 pipeline:
   tests:
-    image: golang:1.10.2
+    image: golang:1.12.9
     commands:
       - make test
       - make static
     when:
-      event: [pull_request, push, tag]
+      event: [push, tag]
+
+  build-image:
+    image: docker:17.09.0-ce
+    environment:
+      - DOCKER_HOST=tcp://172.17.0.1:2375
+    commands:
+      - docker build -t policy-admission:$${DRONE_COMMIT_SHA} .
+    when:
+      event: [push, tag]
+
+  scan-image:
+    image: quay.io/ukhomeofficedigital/anchore-submission:latest
+    image_name: policy-admission:${DRONE_COMMIT_SHA}
+    when:
+      event: [push, tag]
 
   latest:
     image: docker:17.09.0-ce
@@ -17,7 +32,7 @@ pipeline:
       - DOCKER_HOST=tcp://172.17.0.1:2375
     secrets: [docker_password]
     commands:
-      - docker build -t quay.io/ukhomeofficedigital/policy-admission:latest .
+      - docker tag policy-admission:$${DRONE_COMMIT_SHA} quay.io/ukhomeofficedigital/policy-admission:latest
       - docker login -u="ukhomeofficedigital+policy_admission" -p=$${DOCKER_PASSWORD} quay.io
       - docker push quay.io/ukhomeofficedigital/policy-admission:latest
     when:
@@ -30,7 +45,7 @@ pipeline:
       - DOCKER_HOST=tcp://172.17.0.1:2375
     secrets: [docker_password]
     commands:
-      - docker build -t quay.io/ukhomeofficedigital/policy-admission:$${DRONE_TAG} .
+      - docker tag policy-admission:$${DRONE_COMMIT_SHA} quay.io/ukhomeofficedigital/policy-admission:$${DRONE_TAG}
       - docker login -u="ukhomeofficedigital+policy_admission" -p=$${DOCKER_PASSWORD} quay.io
       - docker push quay.io/ukhomeofficedigital/policy-admission:$${DRONE_TAG}
     when:

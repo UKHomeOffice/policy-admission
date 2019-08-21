@@ -1,9 +1,9 @@
-FROM alpine:3.8
+FROM alpine:3.10
 MAINTAINER Rohith Jayawardene <gambol99@gmail.com>
 
-RUN apk add ca-certificates --no-cache
+RUN apk -U add ca-certificates --no-cache
 
-ADD bin/policy-admission /policy-admission
+COPY bin/policy-admission /policy-admission
 
 USER 1000
 
