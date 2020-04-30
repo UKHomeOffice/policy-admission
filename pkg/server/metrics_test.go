@@ -35,5 +35,5 @@ func TestMetrics(t *testing.T) {
 	content, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.NotEmpty(t, content)
-	assert.Contains(t, string(content), "process_start_time_seconds")
+	assert.Contains(t, string(content), "admission_error_total")
 }

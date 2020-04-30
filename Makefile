@@ -109,6 +109,12 @@ cover:
 	@echo "--> Running go cover"
 	@go test -cover $(PACKAGES)
 
+test-nodep:
+	@echo "--> Running the tests"
+	@go test -v ${PACKAGES}
+	@$(MAKE) vet
+	@$(MAKE) cover
+
 test: deps
 	@echo "--> Running the tests"
 	  @if [ ! -d "vendor" ]; then \

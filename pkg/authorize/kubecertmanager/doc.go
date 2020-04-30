@@ -32,6 +32,8 @@ const (
 
 // Config is the configuration for the service
 type Config struct {
+	// InternalIngressHostname is the dns hostname which internal ingresses should be pointing to
+	InternalIngressHostname string `yaml:"internal-ingress-hostname" json:"internal-ingress-hostname"`
 	// ExternalIngressHostname is the dns hostname which external ingresses should be pointing to
 	ExternalIngressHostname string `yaml:"external-ingress-hostname" json:"external-ingress-hostname"`
 	// IgnoredNamespaces is a list namespaces to ignore
