@@ -4,7 +4,7 @@ workspace:
 
 pipeline:
   tests:
-    image: golang:1.12.9
+    image: golang:1.14.2
     commands:
       - make test
       - make static
