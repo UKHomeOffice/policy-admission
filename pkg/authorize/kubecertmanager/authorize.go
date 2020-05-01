@@ -23,7 +23,6 @@ import (
 	"net"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -81,12 +80,7 @@ func (c *authorizer) validateIngressPointed(cx *api.Context, ingress *extensions
 		return append(errs, field.InternalError(field.NewPath("namespace"), err))
 	}
 
-	enableDNSCheck := true
-	if v, found := namespace.GetAnnotations()[cx.Annotation(EnableDNSCheck)]; found {
-		if b, err := strconv.ParseBool(v); err == nil {
-			enableDNSCheck = b
-		}
-	}
+	enableDNSCheck := namespace.GetAnnotations()[cx.Annotation(EnableDNSCheck)] != "false"
 
 	if enableDNSCheck {
 		// @check the dns for the hostnames are pointing to the cname of the external ingress controller
@@ -307,7 +301,8 @@ func (c *authorizer) isHostedInternally(ingress *extensions.Ingress) field.Error
 	return errs
 }
 
-// isIngressPointed is responisble for checking the dns hostname is pointed to the external ingress
+// isIngressPointed is responsible for checking the dns hostname is pointed to eiher external or internal ingress
+// depending on the ingress class
 func (c *authorizer) isIngressPointed(ingress *extensions.Ingress) (field.ErrorList, error) {
 	var errs field.ErrorList
 	var ingressType string
