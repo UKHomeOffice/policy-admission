@@ -188,37 +188,37 @@ func TestAuthorizer(t *testing.T) {
 		},
 		"check valid cert-manager.io internal ingress is ok": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"nginx-internal",
-				"cert-manager.io/enabled": 	   	"true",
+				"kubernetes.io/ingress.class": "nginx-internal",
+				"cert-manager.io/enabled":     "true",
 			},
-			Labels: map[string]string{"cert-manager.io/solver": "route53"},
-			Hosts:  []string{"site.example.com"},
+			Labels:   map[string]string{"cert-manager.io/solver": "route53"},
+			Hosts:    []string{"site.example.com"},
 			Resolves: config.InternalIngressHostname,
 		},
 		"check valid cert-manager.io external ingress is ok": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"nginx-external",
-				"cert-manager.io/enabled": 	   	"true",
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
 			},
-			Hosts:  []string{"site.example.com"},
+			Hosts:    []string{"site.example.com"},
 			Resolves: config.ExternalIngressHostname,
 		},
 		"check valid cert-manager.io external ingress with explicit valid solver is ok": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"nginx-external",
-				"cert-manager.io/enabled": 	   	"true",
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
 			},
-			Labels: map[string]string{"cert-manager.io/solver": "http01"},
-			Hosts:  []string{"site.example.com"},
+			Labels:   map[string]string{"cert-manager.io/solver": "http01"},
+			Hosts:    []string{"site.example.com"},
 			Resolves: config.ExternalIngressHostname,
 		},
 		"check an externally hosted domain with internal ingress cert-manager.io annotations is denied": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"nginx-internal",
-				"cert-manager.io/enabled": 	   	"true",
+				"kubernetes.io/ingress.class": "nginx-internal",
+				"cert-manager.io/enabled":     "true",
 			},
-			Labels: map[string]string{"cert-manager.io/solver": "route53"},
-			Hosts:  []string{"site.nohere.com"},
+			Labels:   map[string]string{"cert-manager.io/solver": "route53"},
+			Hosts:    []string{"site.nohere.com"},
 			Resolves: config.InternalIngressHostname,
 			Errors: field.ErrorList{
 				{
@@ -232,10 +232,10 @@ func TestAuthorizer(t *testing.T) {
 		"check a cert-manager.io internal ingress is denied when the dns does not resolve": {
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class": "nginx-internal",
-				"cert-manager.io/enabled": 	   "true",
+				"cert-manager.io/enabled":     "true",
 			},
-			Labels: map[string]string{"cert-manager.io/solver": "route53"},
-			Hosts:  []string{"site.example.com"},
+			Labels:   map[string]string{"cert-manager.io/solver": "route53"},
+			Hosts:    []string{"site.example.com"},
 			Resolves: "bad.hostname",
 			Errors: field.ErrorList{
 				{
@@ -249,19 +249,19 @@ func TestAuthorizer(t *testing.T) {
 		"check a cert-manager.io internal ingress is permitted when the dns check is disabled": {
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class": "nginx-internal",
-				"cert-manager.io/enabled": 	   "true",
+				"cert-manager.io/enabled":     "true",
 			},
 			Labels: map[string]string{"cert-manager.io/solver": "route53"},
 			Namespace: map[string]string{
 				"policy-admission.acp.homeoffice.gov.uk/kubecertmanager/enable-dns-check": "false",
 			},
-			Hosts:  []string{"site.example.com"},
+			Hosts:    []string{"site.example.com"},
 			Resolves: "bad.hostname",
 		},
 		"check a cert-manager.io external ingress is denied when the dns does not resolve": {
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class": "nginx-external",
-				"cert-manager.io/enabled": 	   "true",
+				"cert-manager.io/enabled":     "true",
 			},
 			Hosts:    []string{"site.nohere.com"},
 			Resolves: "bad.hostname",
@@ -277,7 +277,7 @@ func TestAuthorizer(t *testing.T) {
 		"check a cert-manager.io external ingress is permitted when the dns check is disabled": {
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class": "nginx-external",
-				"cert-manager.io/enabled": 	   "true",
+				"cert-manager.io/enabled":     "true",
 			},
 			Namespace: map[string]string{
 				"policy-admission.acp.homeoffice.gov.uk/kubecertmanager/enable-dns-check": "false",
@@ -288,7 +288,7 @@ func TestAuthorizer(t *testing.T) {
 		"check a cert-manager.io external ingress is denied when dns check is enabled": {
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class": "nginx-external",
-				"cert-manager.io/enabled": 	   "true",
+				"cert-manager.io/enabled":     "true",
 			},
 			Namespace: map[string]string{
 				"policy-admission.acp.homeoffice.gov.uk/kubecertmanager/enable-dns-check": "true",
@@ -307,7 +307,7 @@ func TestAuthorizer(t *testing.T) {
 		"check a cert-manager.io external default value of dns check is true": {
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class": "nginx-external",
-				"cert-manager.io/enabled": 	   "true",
+				"cert-manager.io/enabled":     "true",
 			},
 			Namespace: map[string]string{
 				"policy-admission.acp.homeoffice.gov.uk/kubecertmanager/enable-dns-check": "bad_value",
@@ -326,17 +326,17 @@ func TestAuthorizer(t *testing.T) {
 		"check a cert-manager.io external ingress permitted when resolves": {
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class": "nginx-external",
-				"cert-manager.io/enabled": 	   "true",
+				"cert-manager.io/enabled":     "true",
 			},
 			Hosts:    []string{"site.nohere.com"},
 			Resolves: config.ExternalIngressHostname,
 		},
 		"check missing cert-manager.io/enabled annotation is denied": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"nginx-external",
-				"cert-manager.io/foo": 	   		"bar",
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/foo":         "bar",
 			},
-			Hosts:  []string{"site.example.com"},
+			Hosts: []string{"site.example.com"},
 			Errors: field.ErrorList{
 				{
 					Field:    "metadata.annotations.cert-manager.io/enabled",
@@ -348,10 +348,10 @@ func TestAuthorizer(t *testing.T) {
 		},
 		"check cert-manager.io internal ingress with missing label is denied": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"nginx-internal",
-				"cert-manager.io/enabled": 	   	"true",
+				"kubernetes.io/ingress.class": "nginx-internal",
+				"cert-manager.io/enabled":     "true",
 			},
-			Hosts:  []string{"site.example.com"},
+			Hosts:    []string{"site.example.com"},
 			Resolves: config.InternalIngressHostname,
 			Errors: field.ErrorList{
 				{
@@ -364,11 +364,11 @@ func TestAuthorizer(t *testing.T) {
 		},
 		"check cert-manager.io internal ingress with invalid solver is denied": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"nginx-internal",
-				"cert-manager.io/enabled": 	   	"true",
+				"kubernetes.io/ingress.class": "nginx-internal",
+				"cert-manager.io/enabled":     "true",
 			},
-			Labels: map[string]string{"cert-manager.io/solver": "bad"},
-			Hosts:  []string{"site.example.com"},
+			Labels:   map[string]string{"cert-manager.io/solver": "bad"},
+			Hosts:    []string{"site.example.com"},
 			Resolves: config.InternalIngressHostname,
 			Errors: field.ErrorList{
 				{
@@ -381,20 +381,20 @@ func TestAuthorizer(t *testing.T) {
 		},
 		"check cert-manager.io external ingress with route53 solver is ok": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"nginx-external",
-				"cert-manager.io/enabled": 	   	"true",
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
 			},
-			Labels: map[string]string{"cert-manager.io/solver": "route53"},
-			Hosts:  []string{"site.example.com"},
+			Labels:   map[string]string{"cert-manager.io/solver": "route53"},
+			Hosts:    []string{"site.example.com"},
 			Resolves: config.ExternalIngressHostname,
 		},
 		"check cert-manager.io external ingress with invalid solver is denied": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"nginx-external",
-				"cert-manager.io/enabled": 	   	"true",
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
 			},
-			Labels: map[string]string{"cert-manager.io/solver": "bad"},
-			Hosts:  []string{"site.example.com"},
+			Labels:   map[string]string{"cert-manager.io/solver": "bad"},
+			Hosts:    []string{"site.example.com"},
 			Resolves: config.ExternalIngressHostname,
 			Errors: field.ErrorList{
 				{
@@ -407,9 +407,9 @@ func TestAuthorizer(t *testing.T) {
 		},
 		"check cert-manager.io external ingress with missing ingress.class is denied": {
 			Annotations: map[string]string{
-				"cert-manager.io/enabled": 	   	"true",
+				"cert-manager.io/enabled": "true",
 			},
-			Hosts:  []string{"site.example.com"},
+			Hosts: []string{"site.example.com"},
 			Errors: field.ErrorList{
 				{
 					Field:    "metadata.annotations.kubernetes.io/ingress.class",
@@ -421,10 +421,10 @@ func TestAuthorizer(t *testing.T) {
 		},
 		"check cert-manager.io external ingress with invalid ingress.class is denied": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"bad",
-				"cert-manager.io/enabled": 	   	"true",
+				"kubernetes.io/ingress.class": "bad",
+				"cert-manager.io/enabled":     "true",
 			},
-			Hosts:  []string{"site.example.com"},
+			Hosts: []string{"site.example.com"},
 			Errors: field.ErrorList{
 				{
 					Field:    "metadata.annotations.kubernetes.io/ingress.class",
@@ -436,18 +436,18 @@ func TestAuthorizer(t *testing.T) {
 		},
 		"check cert-manager.io external ingress with a common name of 63 characters is ok": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"nginx-external",
-				"cert-manager.io/enabled": 	   	"true",
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
 			},
-			Hosts:  []string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example.com"},
+			Hosts:    []string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example.com"},
 			Resolves: config.ExternalIngressHostname,
 		},
 		"check cert-manager.io external ingress with a common name of 64 characters is denied": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"nginx-external",
-				"cert-manager.io/enabled": 	   	"true",
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
 			},
-			Hosts:  []string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example.com"},
+			Hosts:    []string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example.com"},
 			Resolves: config.ExternalIngressHostname,
 			Errors: field.ErrorList{
 				{
@@ -460,10 +460,10 @@ func TestAuthorizer(t *testing.T) {
 		},
 		"check cert-manager.io external ingress with a common name of 63 characters or less but additional hosts with long names is ok": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"nginx-external",
-				"cert-manager.io/enabled": 	   	"true",
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
 			},
-			Hosts:  []string{
+			Hosts: []string{
 				"short-name.example.com",
 				"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example.com",
 			},
@@ -471,11 +471,11 @@ func TestAuthorizer(t *testing.T) {
 		},
 		"check cert-manager managed ingress with both v0.8 and v0.11+ annotations is denied": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"nginx-external",
-				"cert-manager.io/enabled": 	   	"true",
-				"certmanager.k8s.io/foo": 		"bar",
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+				"certmanager.k8s.io/foo":      "bar",
 			},
-			Hosts:  []string{"site.example.com"},
+			Hosts: []string{"site.example.com"},
 			Errors: field.ErrorList{
 				{
 					Field:    "metadata.annotations",
@@ -487,11 +487,11 @@ func TestAuthorizer(t *testing.T) {
 		},
 		"check annotations of 2 different cert managers is denied": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"nginx-external",
-				"cert-manager.io/enabled": 	   	"true",
-				"stable.k8s.psg.io/kcm.foo": 	"bar",
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+				"stable.k8s.psg.io/kcm.foo":   "bar",
 			},
-			Hosts:  []string{"site.example.com"},
+			Hosts: []string{"site.example.com"},
 			Errors: field.ErrorList{
 				{
 					Field:    "metadata.annotations",
@@ -502,12 +502,12 @@ func TestAuthorizer(t *testing.T) {
 			},
 		},
 		"check labels of 2 different cert managers is denied": {
-			Annotations: map[string]string{"kubernetes.io/ingress.class":	"nginx-external"},
+			Annotations: map[string]string{"kubernetes.io/ingress.class": "nginx-external"},
 			Labels: map[string]string{
-				"cert-manager.io/baz": 	   		"fooz",
-				"stable.k8s.psg.io/kcm.foo": 	"bar",
+				"cert-manager.io/baz":       "fooz",
+				"stable.k8s.psg.io/kcm.foo": "bar",
 			},
-			Hosts:  []string{"site.example.com"},
+			Hosts: []string{"site.example.com"},
 			Errors: field.ErrorList{
 				{
 					Field:    "metadata.annotations",
@@ -519,10 +519,10 @@ func TestAuthorizer(t *testing.T) {
 		},
 		"check annotation and label of 2 different cert managers is denied": {
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":	"nginx-external",
-				"cert-manager.io/enabled": 	   	"true",
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
 			},
-			Labels: map[string]string{"stable.k8s.psg.io/kcm.foo": 	"bar"},
+			Labels: map[string]string{"stable.k8s.psg.io/kcm.foo": "bar"},
 			Hosts:  []string{"site.example.com"},
 			Errors: field.ErrorList{
 				{
@@ -589,7 +589,7 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]kubeCertCheck
 		}
 
 		ingress := newDefaultIngress()
-		ingress.Spec.TLS = make ([]extensions.IngressTLS, 1)
+		ingress.Spec.TLS = make([]extensions.IngressTLS, 1)
 		for _, x := range check.Hosts {
 			ingress.Spec.Rules = append(ingress.Spec.Rules, extensions.IngressRule{Host: x})
 			ingress.Spec.TLS[0].Hosts = append(ingress.Spec.TLS[0].Hosts, x)
