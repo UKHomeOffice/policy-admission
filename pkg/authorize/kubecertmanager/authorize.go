@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
+	"sort"
 	"strings"
 	"time"
 
@@ -70,11 +70,35 @@ func (c *authorizer) Admit(_ context.Context, cx *api.Context) field.ErrorList {
 	return c.validateIngress(cx, ingress)
 }
 
-// validateIngress checks the the image complys with policy
-func (c *authorizer) validateIngress(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
+// validateIngress checks that the ingress's host resolve to the hostname of the cluster's internal or external ingress
+func (c *authorizer) validateIngressPointed(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
 	var errs field.ErrorList
 
-	// @check is this ingress has kube-cert-manager is enabled
+	// @step: get namespace for this object
+	namespace, err := utils.GetCachedNamespace(cx.Client, cx.Cache, ingress.Namespace)
+	if err != nil {
+		return append(errs, field.InternalError(field.NewPath("namespace"), err))
+	}
+
+	enableDNSCheck := namespace.GetAnnotations()[cx.Annotation(EnableDNSCheck)] != "false"
+
+	if enableDNSCheck {
+		// @check the dns for the hostnames are pointing to the cname of the external ingress controller
+		pointed, err := c.isIngressPointed(ingress)
+		if err != nil {
+			return append(errs, field.InternalError(field.NewPath("dns validation"), fmt.Errorf("failed to check for dns validation: %s", err)))
+		}
+
+		errs = append(errs, pointed...)
+	}
+
+	return errs
+}
+
+// validateIngress checks the PSG managed ingress complies with policy
+func (c *authorizer) validatePsgIngress(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
+	var errs field.ErrorList
+
 	if value, found := ingress.GetLabels()["stable.k8s.psg.io/kcm.class"]; !found || value != "default" {
 		return errs
 	}
@@ -111,28 +135,125 @@ func (c *authorizer) validateIngress(cx *api.Context, ingress *extensions.Ingres
 			fmt.Sprintf("invalid kube-cert-manager provider, expected '%s' for a http challenge", class)))
 	}
 
-	// @step: get namespace for this object
-	namespace, err := utils.GetCachedNamespace(cx.Client, cx.Cache, ingress.Namespace)
-	if err != nil {
-		return append(errs, field.InternalError(field.NewPath("namespace"), err))
+	errs = append(errs, c.validateIngressPointed(cx, ingress)...)
+
+	return errs
+}
+
+func (c *authorizer) validateCertManagerIngress(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
+	var errs field.ErrorList
+
+	if managers := getCertManagerReferences(ingress); len(managers) != 1 || managers[0] != "cert-manager.io" {
+		return nil
 	}
 
-	enableDNSCheck := true
-	if v, found := namespace.GetAnnotations()[cx.Annotation(EnableDNSCheck)]; found {
-		if b, err := strconv.ParseBool(v); err == nil {
-			enableDNSCheck = b
+	// there is at least one annotation or label prefixed with "cert-manager.io"
+	if value, found := ingress.GetAnnotations()["cert-manager.io/enabled"]; !found || value != "true" {
+		return append(errs, field.Invalid(field.NewPath("metadata.annotations.cert-manager.io/enabled"), "", "cert-manager.io annotations or labels are present, but annotation cert-manager.io/enabled: \"true\" is missing"))
+	}
+
+	ingressValueValid := false
+	ingressValue, ingressFound := ingress.GetAnnotations()["kubernetes.io/ingress.class"]
+	if ingressFound {
+		solverValue, solverFound := ingress.GetLabels()["cert-manager.io/solver"]
+		if ingressValue == "nginx-internal" {
+			ingressValueValid = true
+			if !solverFound || solverValue != "route53" {
+				errs = append(errs, field.Invalid(field.NewPath("metadata.labels.cert-manager.io/solver"), solverValue, "nginx-internal has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver is missing or not set to route53"))
+			}
+
+			errs = append(errs, c.isHostedInternally(ingress)...)
+			errs = append(errs, c.validateIngressPointed(cx, ingress)...)
+		} else if ingressValue == "nginx-external" {
+			ingressValueValid = true
+			if solverFound && solverValue != "http01" && solverValue != "route53" {
+				errs = append(errs, field.Invalid(field.NewPath("metadata.labels.cert-manager.io/solver"), solverValue, "nginx-external has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver has an invalid value: expecting http01, route53 or no solver annotation"))
+			}
+
+			errs = append(errs, c.validateIngressPointed(cx, ingress)...)
 		}
 	}
 
-	if enableDNSCheck {
-		// @check the dns for the hostnames are pointing to the cname of the external ingress controller
-		pointed, err := c.isIngressPointed(ingress)
-		if err != nil {
-			return append(errs, field.InternalError(field.NewPath("dns validation"), fmt.Errorf("failed to check for dns validation: %s", err)))
-		}
-
-		errs = append(errs, pointed...)
+	if !ingressValueValid {
+		errs = append(errs, field.Invalid(field.NewPath("metadata.annotations.kubernetes.io/ingress.class"), ingressValue, "annotation kubernetes.io/ingress.class is missing; please specify a value of either nginx-internal or nginx-external"))
 	}
+
+	for tlsIdx, tls := range ingress.Spec.TLS {
+		if len(tls.Hosts) > 0 {
+			if len(tls.Hosts[0]) > 63 {
+				errs = append(errs, field.Invalid(field.NewPath(fmt.Sprintf("spec.tls[%v].hosts[0]", tlsIdx)), tls.Hosts[0], "commonName in certificates should be no more than 63 characters (but additional hosts can be); look at https://ukhomeoffice.github.io/application-container-platform/how-to-docs/cert-manager.html for a work-around allowing you to specify a long host name"))
+			}
+		}
+	}
+
+	return errs
+}
+
+// getCertManagerReferences returns a map of the certificate managers present from a labels or annotations map
+func getCertManagerReferencesFromKeyMap(aMap map[string]string) map[string]bool {
+	certManagerReferences := map[string]bool{}
+
+	for k := range aMap {
+		if strings.HasPrefix(k, "stable.k8s.psg.io/kcm") {
+			certManagerReferences["stable.k8s.psg.io/kcm"] = true
+		} else if strings.HasPrefix(k, "certmanager.k8s.io") {
+			certManagerReferences["certmanager.k8s.io"] = true
+		} else if strings.HasPrefix(k, "cert-manager.io") {
+			certManagerReferences["cert-manager.io"] = true
+		}
+	}
+
+	return certManagerReferences
+}
+
+// getCertManagerReferences returns a list of certificate managers mentioned in the ingress
+func getCertManagerReferences(ingress *extensions.Ingress) []string {
+	var allManagers []string
+
+	allReferences := getCertManagerReferencesFromKeyMap(ingress.GetLabels())
+	annotationsReferences := getCertManagerReferencesFromKeyMap(ingress.GetAnnotations())
+
+	// merge the 2 maps
+	for k, v := range annotationsReferences {
+		allReferences[k] = v
+	}
+
+	// get the certificate managers list
+	for k := range allReferences {
+		allManagers = append(allManagers, k)
+	}
+
+	sort.Strings(allManagers)
+
+	return allManagers
+}
+
+func (c *authorizer) validateSingleCertificateManagerIngress(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
+	var errs field.ErrorList
+
+	certManagerReferenced := getCertManagerReferences(ingress)
+
+	if len(certManagerReferenced) > 1 {
+		errs = append(errs, field.Invalid(field.NewPath("metadata.annotations"), "", fmt.Sprintf("this ingress should be managed by a single certificate manager; found prefixes %v in annotations or labels; please use only one of those prefix types and ideally migrate to cert-manager.io", certManagerReferenced)))
+	}
+
+	return errs
+}
+
+// validateIngress checks the the ingress complies with policy
+func (c *authorizer) validateIngress(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
+	var errs field.ErrorList
+
+	// @step: if annotations or labels for different certificate managers have been specified, complain and stop here
+	if errs = c.validateSingleCertificateManagerIngress(cx, ingress); errs != nil {
+		return errs
+	}
+
+	// @check this ingress for psg kube-cert-manager errors
+	errs = c.validatePsgIngress(cx, ingress)
+
+	// @check this ingress for JetStack's cert-manager.io (v0.11+) errors
+	errs = append(c.validateCertManagerIngress(cx, ingress), errs...)
 
 	return errs
 }
@@ -180,16 +301,27 @@ func (c *authorizer) isHostedInternally(ingress *extensions.Ingress) field.Error
 	return errs
 }
 
-// isIngressPointed is responisble for checking the dns hostname is pointed to the external ingress
+// isIngressPointed is responsible for checking the dns hostname is pointed to eiher external or internal ingress
+// depending on the ingress class
 func (c *authorizer) isIngressPointed(ingress *extensions.Ingress) (field.ErrorList, error) {
 	var errs field.ErrorList
+	var ingressType string
+
+	var expectedHostName string
+	if value, found := ingress.GetAnnotations()["kubernetes.io/ingress.class"]; found && value == "nginx-internal" {
+		expectedHostName = c.config.InternalIngressHostname
+		ingressType = "internal"
+	} else {
+		expectedHostName = c.config.ExternalIngressHostname
+		ingressType = "external"
+	}
 
 	for i, x := range ingress.Spec.Rules {
 		if cname, err := c.resolve.GetCNAME(x.Host); err != nil {
 			return errs, err
-		} else if cname != c.config.ExternalIngressHostname {
+		} else if cname != expectedHostName {
 			return append(errs, field.Invalid(field.NewPath("spec").Child("rules").Index(i).Child("host"), x.Host,
-				fmt.Sprintf("the hostname: %s is not pointed to the external ingress dns name %s", x.Host, c.config.ExternalIngressHostname))), nil
+				fmt.Sprintf("the hostname: %s is not pointed to the %s ingress dns name %s", x.Host, ingressType, expectedHostName))), nil
 		}
 	}
 

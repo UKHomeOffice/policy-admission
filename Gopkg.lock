@@ -2,6 +2,30 @@
 
 
 [[projects]]
+  digest = "1:17fae54ef1c2fcfa6f75285f36b36ad9b0cd0c2546f0d9ee66b8af6a25363c28"
+  name = "github.com/UKHomeOffice/policy-admission"
+  packages = [
+    "pkg/api",
+    "pkg/authorize",
+    "pkg/authorize/domains",
+    "pkg/authorize/imagelist",
+    "pkg/authorize/images",
+    "pkg/authorize/kubecertmanager",
+    "pkg/authorize/scripts",
+    "pkg/authorize/services",
+    "pkg/authorize/tolerations",
+    "pkg/authorize/values",
+    "pkg/events",
+    "pkg/events/kube",
+    "pkg/events/slack",
+    "pkg/server",
+    "pkg/utils",
+  ]
+  pruneopts = "UT"
+  revision = "a050ccf5acbc7e57f47969764bce1aacb5113fb0"
+  version = "v0.1.4"
+
+[[projects]]
   digest = "1:b7037e42d48e4659edf2ca7e4e95236174d514053273224c42d091433ccc4b4b"
   name = "github.com/aws/aws-sdk-go"
   packages = [
@@ -623,6 +647,21 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/UKHomeOffice/policy-admission/pkg/api",
+    "github.com/UKHomeOffice/policy-admission/pkg/authorize",
+    "github.com/UKHomeOffice/policy-admission/pkg/authorize/domains",
+    "github.com/UKHomeOffice/policy-admission/pkg/authorize/imagelist",
+    "github.com/UKHomeOffice/policy-admission/pkg/authorize/images",
+    "github.com/UKHomeOffice/policy-admission/pkg/authorize/kubecertmanager",
+    "github.com/UKHomeOffice/policy-admission/pkg/authorize/scripts",
+    "github.com/UKHomeOffice/policy-admission/pkg/authorize/services",
+    "github.com/UKHomeOffice/policy-admission/pkg/authorize/tolerations",
+    "github.com/UKHomeOffice/policy-admission/pkg/authorize/values",
+    "github.com/UKHomeOffice/policy-admission/pkg/events",
+    "github.com/UKHomeOffice/policy-admission/pkg/events/kube",
+    "github.com/UKHomeOffice/policy-admission/pkg/events/slack",
+    "github.com/UKHomeOffice/policy-admission/pkg/server",
+    "github.com/UKHomeOffice/policy-admission/pkg/utils",
     "github.com/aws/aws-sdk-go/aws",
     "github.com/aws/aws-sdk-go/aws/credentials",
     "github.com/aws/aws-sdk-go/aws/session",

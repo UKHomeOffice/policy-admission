@@ -44,17 +44,26 @@ func TestNewDefaultConfig(t *testing.T) {
 
 func TestAuthorizer(t *testing.T) {
 	config := NewDefaultConfig()
-	config.ExternalIngressHostname = "ingress.acp.example.com"
+	config.InternalIngressHostname = "ingress-internal.acp.example.com"
+	config.ExternalIngressHostname = "ingress-external.acp.example.com"
 	config.HostedDomains = []string{"example.com"}
 
 	checks := map[string]kubeCertCheck{
-		"check that the ingress is allow through": {},
-		"check an internally hosted domain is permited": {
+		"check that the ingress is allowed through": {},
+		"check an ingress is allowed when inside the allowed list": {
 			Annotations: map[string]string{"kubernetes.io/ingress.class": "nginx-external"},
 			Labels:      map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
 			Hosts:       []string{"site.example.com"},
 		},
-		"check an externaly hosted domain is denied": {
+		"check an ingress is allowed with a dns annotation and allowed list": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class":    "nginx-external",
+				"stable.k8s.psg.io/kcm.provider": "dns",
+			},
+			Labels: map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
+			Hosts:  []string{"site.example.com"},
+		},
+		"check an externally hosted domain is denied": {
 			Annotations: map[string]string{"kubernetes.io/ingress.class": "nginx-external"},
 			Labels:      map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
 			Hosts:       []string{"site.nohere.com"},
@@ -67,20 +76,7 @@ func TestAuthorizer(t *testing.T) {
 				},
 			},
 		},
-		"check an ingress is allowed when inside the allowed list": {
-			Annotations: map[string]string{"kubernetes.io/ingress.class": "nginx-external"},
-			Labels:      map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
-			Hosts:       []string{"site.example.com"},
-		},
-		"check an ingress is allowed with a dns annontation and allowed list": {
-			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":    "nginx-external",
-				"stable.k8s.psg.io/kcm.provider": "dns",
-			},
-			Labels: map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
-			Hosts:  []string{"site.example.com"},
-		},
-		"check an externaly host is denied invalid challenge type": {
+		"check an externally host is denied invalid challenge type": {
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class":    "nginx-external",
 				"stable.k8s.psg.io/kcm.provider": "bad",
@@ -125,7 +121,7 @@ func TestAuthorizer(t *testing.T) {
 					Field:    "spec.rules[0].host",
 					BadValue: "site.nohere.com",
 					Type:     field.ErrorTypeInvalid,
-					Detail:   "the hostname: site.nohere.com is not pointed to the external ingress dns name ingress.acp.example.com",
+					Detail:   "the hostname: site.nohere.com is not pointed to the external ingress dns name ingress-external.acp.example.com",
 				},
 			},
 		},
@@ -166,11 +162,11 @@ func TestAuthorizer(t *testing.T) {
 					Field:    "spec.rules[0].host",
 					BadValue: "site.nohere.com",
 					Type:     field.ErrorTypeInvalid,
-					Detail:   "the hostname: site.nohere.com is not pointed to the external ingress dns name ingress.acp.example.com",
+					Detail:   "the hostname: site.nohere.com is not pointed to the external ingress dns name ingress-external.acp.example.com",
 				},
 			},
 		},
-		"check a deault value of dns check is true": {
+		"check a default value of dns check is true": {
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class":    "nginx-external",
 				"stable.k8s.psg.io/kcm.provider": "http",
@@ -186,10 +182,358 @@ func TestAuthorizer(t *testing.T) {
 					Field:    "spec.rules[0].host",
 					BadValue: "site.nohere.com",
 					Type:     field.ErrorTypeInvalid,
-					Detail:   "the hostname: site.nohere.com is not pointed to the external ingress dns name ingress.acp.example.com",
+					Detail:   "the hostname: site.nohere.com is not pointed to the external ingress dns name ingress-external.acp.example.com",
 				},
 			},
 		},
+		"check valid cert-manager.io internal ingress is ok": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-internal",
+				"cert-manager.io/enabled":     "true",
+			},
+			Labels:   map[string]string{"cert-manager.io/solver": "route53"},
+			Hosts:    []string{"site.example.com"},
+			Resolves: config.InternalIngressHostname,
+		},
+		"check valid cert-manager.io external ingress is ok": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+			},
+			Hosts:    []string{"site.example.com"},
+			Resolves: config.ExternalIngressHostname,
+		},
+		"check valid cert-manager.io external ingress with explicit valid solver is ok": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+			},
+			Labels:   map[string]string{"cert-manager.io/solver": "http01"},
+			Hosts:    []string{"site.example.com"},
+			Resolves: config.ExternalIngressHostname,
+		},
+		"check an externally hosted domain with internal ingress cert-manager.io annotations is denied": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-internal",
+				"cert-manager.io/enabled":     "true",
+			},
+			Labels:   map[string]string{"cert-manager.io/solver": "route53"},
+			Hosts:    []string{"site.nohere.com"},
+			Resolves: config.InternalIngressHostname,
+			Errors: field.ErrorList{
+				{
+					Field:    "spec.rules[0].host",
+					BadValue: "site.nohere.com",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "domain is not hosted internally and thus denied",
+				},
+			},
+		},
+		"check a cert-manager.io internal ingress is denied when the dns does not resolve": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-internal",
+				"cert-manager.io/enabled":     "true",
+			},
+			Labels:   map[string]string{"cert-manager.io/solver": "route53"},
+			Hosts:    []string{"site.example.com"},
+			Resolves: "bad.hostname",
+			Errors: field.ErrorList{
+				{
+					Field:    "spec.rules[0].host",
+					BadValue: "site.example.com",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "the hostname: site.example.com is not pointed to the internal ingress dns name ingress-internal.acp.example.com",
+				},
+			},
+		},
+		"check a cert-manager.io internal ingress is permitted when the dns check is disabled": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-internal",
+				"cert-manager.io/enabled":     "true",
+			},
+			Labels: map[string]string{"cert-manager.io/solver": "route53"},
+			Namespace: map[string]string{
+				"policy-admission.acp.homeoffice.gov.uk/kubecertmanager/enable-dns-check": "false",
+			},
+			Hosts:    []string{"site.example.com"},
+			Resolves: "bad.hostname",
+		},
+		"check a cert-manager.io external ingress is denied when the dns does not resolve": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+			},
+			Hosts:    []string{"site.nohere.com"},
+			Resolves: "bad.hostname",
+			Errors: field.ErrorList{
+				{
+					Field:    "spec.rules[0].host",
+					BadValue: "site.nohere.com",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "the hostname: site.nohere.com is not pointed to the external ingress dns name ingress-external.acp.example.com",
+				},
+			},
+		},
+		"check a cert-manager.io external ingress is permitted when the dns check is disabled": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+			},
+			Namespace: map[string]string{
+				"policy-admission.acp.homeoffice.gov.uk/kubecertmanager/enable-dns-check": "false",
+			},
+			Hosts:    []string{"site.nohere.com"},
+			Resolves: "bad.hostname",
+		},
+		"check a cert-manager.io external ingress is denied when dns check is enabled": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+			},
+			Namespace: map[string]string{
+				"policy-admission.acp.homeoffice.gov.uk/kubecertmanager/enable-dns-check": "true",
+			},
+			Hosts:    []string{"site.nohere.com"},
+			Resolves: "bad.hostname",
+			Errors: field.ErrorList{
+				{
+					Field:    "spec.rules[0].host",
+					BadValue: "site.nohere.com",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "the hostname: site.nohere.com is not pointed to the external ingress dns name ingress-external.acp.example.com",
+				},
+			},
+		},
+		"check a cert-manager.io external default value of dns check is true": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+			},
+			Namespace: map[string]string{
+				"policy-admission.acp.homeoffice.gov.uk/kubecertmanager/enable-dns-check": "bad_value",
+			},
+			Hosts:    []string{"site.nohere.com"},
+			Resolves: "bad.hostname",
+			Errors: field.ErrorList{
+				{
+					Field:    "spec.rules[0].host",
+					BadValue: "site.nohere.com",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "the hostname: site.nohere.com is not pointed to the external ingress dns name ingress-external.acp.example.com",
+				},
+			},
+		},
+		"check a cert-manager.io external ingress permitted when resolves": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+			},
+			Hosts:    []string{"site.nohere.com"},
+			Resolves: config.ExternalIngressHostname,
+		},
+		"check missing cert-manager.io/enabled annotation is denied": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/foo":         "bar",
+			},
+			Hosts: []string{"site.example.com"},
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata.annotations.cert-manager.io/enabled",
+					BadValue: "",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "cert-manager.io annotations or labels are present, but annotation cert-manager.io/enabled: \"true\" is missing",
+				},
+			},
+		},
+		"check cert-manager.io internal ingress with missing label is denied": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-internal",
+				"cert-manager.io/enabled":     "true",
+			},
+			Hosts:    []string{"site.example.com"},
+			Resolves: config.InternalIngressHostname,
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata.labels.cert-manager.io/solver",
+					BadValue: "",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "nginx-internal has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver is missing or not set to route53",
+				},
+			},
+		},
+		"check cert-manager.io internal ingress with invalid solver is denied": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-internal",
+				"cert-manager.io/enabled":     "true",
+			},
+			Labels:   map[string]string{"cert-manager.io/solver": "bad"},
+			Hosts:    []string{"site.example.com"},
+			Resolves: config.InternalIngressHostname,
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata.labels.cert-manager.io/solver",
+					BadValue: "bad",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "nginx-internal has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver is missing or not set to route53",
+				},
+			},
+		},
+		"check cert-manager.io external ingress with route53 solver is ok": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+			},
+			Labels:   map[string]string{"cert-manager.io/solver": "route53"},
+			Hosts:    []string{"site.example.com"},
+			Resolves: config.ExternalIngressHostname,
+		},
+		"check cert-manager.io external ingress with invalid solver is denied": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+			},
+			Labels:   map[string]string{"cert-manager.io/solver": "bad"},
+			Hosts:    []string{"site.example.com"},
+			Resolves: config.ExternalIngressHostname,
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata.labels.cert-manager.io/solver",
+					BadValue: "bad",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "nginx-external has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver has an invalid value: expecting http01, route53 or no solver annotation",
+				},
+			},
+		},
+		"check cert-manager.io external ingress with missing ingress.class is denied": {
+			Annotations: map[string]string{
+				"cert-manager.io/enabled": "true",
+			},
+			Hosts: []string{"site.example.com"},
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata.annotations.kubernetes.io/ingress.class",
+					BadValue: "",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "annotation kubernetes.io/ingress.class is missing; please specify a value of either nginx-internal or nginx-external",
+				},
+			},
+		},
+		"check cert-manager.io external ingress with invalid ingress.class is denied": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "bad",
+				"cert-manager.io/enabled":     "true",
+			},
+			Hosts: []string{"site.example.com"},
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata.annotations.kubernetes.io/ingress.class",
+					BadValue: "bad",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "annotation kubernetes.io/ingress.class is missing; please specify a value of either nginx-internal or nginx-external",
+				},
+			},
+		},
+		"check cert-manager.io external ingress with a common name of 63 characters is ok": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+			},
+			Hosts:    []string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example.com"},
+			Resolves: config.ExternalIngressHostname,
+		},
+		"check cert-manager.io external ingress with a common name of 64 characters is denied": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+			},
+			Hosts:    []string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example.com"},
+			Resolves: config.ExternalIngressHostname,
+			Errors: field.ErrorList{
+				{
+					Field:    "spec.tls[0].hosts[0]",
+					BadValue: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example.com",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "commonName in certificates should be no more than 63 characters (but additional hosts can be); look at https://ukhomeoffice.github.io/application-container-platform/how-to-docs/cert-manager.html for a work-around allowing you to specify a long host name",
+				},
+			},
+		},
+		"check cert-manager.io external ingress with a common name of 63 characters or less but additional hosts with long names is ok": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+			},
+			Hosts: []string{
+				"short-name.example.com",
+				"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example.com",
+			},
+			Resolves: config.ExternalIngressHostname,
+		},
+		"check cert-manager managed ingress with both v0.8 and v0.11+ annotations is denied": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+				"certmanager.k8s.io/foo":      "bar",
+			},
+			Hosts: []string{"site.example.com"},
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata.annotations",
+					BadValue: "",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "this ingress should be managed by a single certificate manager; found prefixes [cert-manager.io certmanager.k8s.io] in annotations or labels; please use only one of those prefix types and ideally migrate to cert-manager.io",
+				},
+			},
+		},
+		"check annotations of 2 different cert managers is denied": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+				"stable.k8s.psg.io/kcm.foo":   "bar",
+			},
+			Hosts: []string{"site.example.com"},
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata.annotations",
+					BadValue: "",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "this ingress should be managed by a single certificate manager; found prefixes [cert-manager.io stable.k8s.psg.io/kcm] in annotations or labels; please use only one of those prefix types and ideally migrate to cert-manager.io",
+				},
+			},
+		},
+		"check labels of 2 different cert managers is denied": {
+			Annotations: map[string]string{"kubernetes.io/ingress.class": "nginx-external"},
+			Labels: map[string]string{
+				"cert-manager.io/baz":       "fooz",
+				"stable.k8s.psg.io/kcm.foo": "bar",
+			},
+			Hosts: []string{"site.example.com"},
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata.annotations",
+					BadValue: "",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "this ingress should be managed by a single certificate manager; found prefixes [cert-manager.io stable.k8s.psg.io/kcm] in annotations or labels; please use only one of those prefix types and ideally migrate to cert-manager.io",
+				},
+			},
+		},
+		"check annotation and label of 2 different cert managers is denied": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+			},
+			Labels: map[string]string{"stable.k8s.psg.io/kcm.foo": "bar"},
+			Hosts:  []string{"site.example.com"},
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata.annotations",
+					BadValue: "",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "this ingress should be managed by a single certificate manager; found prefixes [cert-manager.io stable.k8s.psg.io/kcm] in annotations or labels; please use only one of those prefix types and ideally migrate to cert-manager.io",
+				},
+			},
+		},
+		// what about same check on Certificates? change js script?
 	}
 	newTestAuthorizer(t, config).runChecks(t, checks)
 }
@@ -245,8 +589,10 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]kubeCertCheck
 		}
 
 		ingress := newDefaultIngress()
+		ingress.Spec.TLS = make([]extensions.IngressTLS, 1)
 		for _, x := range check.Hosts {
 			ingress.Spec.Rules = append(ingress.Spec.Rules, extensions.IngressRule{Host: x})
+			ingress.Spec.TLS[0].Hosts = append(ingress.Spec.TLS[0].Hosts, x)
 		}
 		ingress.ObjectMeta.Annotations = check.Annotations
 		ingress.ObjectMeta.Labels = check.Labels

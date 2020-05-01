@@ -5,7 +5,7 @@ REGISTRY=quay.io
 ROOT_DIR=${PWD}
 HARDWARE=$(shell uname -m)
 GIT_SHA=$(shell git --no-pager describe --always --dirty)
-GOVERSION=1.12
+GOVERSION=1.13
 BUILD_TIME=$(shell date -u '+%Y-%m-%d_%I:%M:%S%p')
 VERSION ?= $(shell awk '/Version.*=/ { print $$3 }' cmd/policy-admission/main.go | sed 's/"//g')
 DEPS=$(shell go list -f '{{range .TestImports}}{{.}} {{end}}' ./...)
@@ -108,6 +108,12 @@ coverage:
 cover:
 	@echo "--> Running go cover"
 	@go test -cover $(PACKAGES)
+
+test-nodep:
+	@echo "--> Running the tests"
+	@go test -v ${PACKAGES}
+	@$(MAKE) vet
+	@$(MAKE) cover
 
 test: deps
 	@echo "--> Running the tests"
