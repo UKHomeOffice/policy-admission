@@ -26,10 +26,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	
+
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
-	
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -74,52 +74,52 @@ func (c *authorizer) Admit(_ context.Context, cx *api.Context) field.ErrorList {
 // validateIngress checks that the ingress's host resolve to the hostname of the cluster's internal or external ingress
 func (c *authorizer) validateIngressPointed(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
 	var errs field.ErrorList
-	
+
 	// @step: get namespace for this object
 	namespace, err := utils.GetCachedNamespace(cx.Client, cx.Cache, ingress.Namespace)
 	if err != nil {
 		return append(errs, field.InternalError(field.NewPath("namespace"), err))
 	}
-	
+
 	enableDNSCheck := true
 	if v, found := namespace.GetAnnotations()[cx.Annotation(EnableDNSCheck)]; found {
 		if b, err := strconv.ParseBool(v); err == nil {
 			enableDNSCheck = b
 		}
 	}
-	
+
 	if enableDNSCheck {
 		// @check the dns for the hostnames are pointing to the cname of the external ingress controller
 		pointed, err := c.isIngressPointed(ingress)
 		if err != nil {
 			return append(errs, field.InternalError(field.NewPath("dns validation"), fmt.Errorf("failed to check for dns validation: %s", err)))
 		}
-		
+
 		errs = append(errs, pointed...)
 	}
-	
+
 	return errs
 }
 
 // validateIngress checks the PSG managed ingress complies with policy
 func (c *authorizer) validatePsgIngress(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
 	var errs field.ErrorList
-	
+
 	if value, found := ingress.GetLabels()["stable.k8s.psg.io/kcm.class"]; !found || value != "default" {
 		return errs
 	}
-	
+
 	// @check if the domain is not within the internally hosts domain i.e. the provider is missing or set to dns
 	if value, found := ingress.GetAnnotations()["stable.k8s.psg.io/kcm.provider"]; !found || value == "dns" {
 		return c.isHostedInternally(ingress)
 	}
-	
+
 	// @logic: else the domain it's requesting is outside of the internally hosted domain/s
-	
+
 	label := "stable.k8s.psg.io/kcm.provider"
 	class := "http"
 	annontations := ingress.GetAnnotations()
-	
+
 	// @check we have http challenge enabled
 	if value, found := annontations["stable.k8s.psg.io/kcm.provider"]; !found {
 		return append(errs, field.Invalid(field.NewPath("annotations").Key(label), value,
@@ -128,11 +128,11 @@ func (c *authorizer) validatePsgIngress(cx *api.Context, ingress *extensions.Ing
 		return append(errs, field.Invalid(field.NewPath("annotations").Key(label), value,
 			fmt.Sprintf("invalid kube-cert-manager provider type: %s, expected: %s", value, class)))
 	}
-	
+
 	// @check the nginx is external
 	label = "kubernetes.io/ingress.class"
 	class = "nginx-external"
-	
+
 	if value, found := annontations[label]; !found {
 		return append(errs, field.Invalid(field.NewPath("annotations").Key(label), "",
 			"the ingress does not specify a nginx class in annotations"))
@@ -140,34 +140,34 @@ func (c *authorizer) validatePsgIngress(cx *api.Context, ingress *extensions.Ing
 		return append(errs, field.Invalid(field.NewPath("annotations").Key(label), value,
 			fmt.Sprintf("invalid kube-cert-manager provider, expected '%s' for a http challenge", class)))
 	}
-	
+
 	errs = append(errs, c.validateIngressPointed(cx, ingress)...)
-	
+
 	return errs
 }
 
 func (c *authorizer) validateCertManagerIngress(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
 	var errs field.ErrorList
-	
-	if managers := getCertManagerReferences(ingress); len(managers) !=1 || managers[0] != "cert-manager.io" {
+
+	if managers := getCertManagerReferences(ingress); len(managers) != 1 || managers[0] != "cert-manager.io" {
 		return nil
 	}
-	
+
 	// there is at least one annotation or label prefixed with "cert-manager.io"
 	if value, found := ingress.GetAnnotations()["cert-manager.io/enabled"]; !found || value != "true" {
-	  	return append(errs, field.Invalid(field.NewPath("metadata.annotations.cert-manager.io/enabled"), "", "cert-manager.io annotations or labels are present, but annotation cert-manager.io/enabled: \"true\" is missing"))
-    }
-	
-    ingressValueValid := false
+		return append(errs, field.Invalid(field.NewPath("metadata.annotations.cert-manager.io/enabled"), "", "cert-manager.io annotations or labels are present, but annotation cert-manager.io/enabled: \"true\" is missing"))
+	}
+
+	ingressValueValid := false
 	ingressValue, ingressFound := ingress.GetAnnotations()["kubernetes.io/ingress.class"]
 	if ingressFound {
 		solverValue, solverFound := ingress.GetLabels()["cert-manager.io/solver"]
 		if ingressValue == "nginx-internal" {
 			ingressValueValid = true
-		    if !solverFound || solverValue != "route53" {
+			if !solverFound || solverValue != "route53" {
 				errs = append(errs, field.Invalid(field.NewPath("metadata.labels.cert-manager.io/solver"), solverValue, "nginx-internal has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver is missing or not set to route53"))
 			}
-			
+
 			errs = append(errs, c.isHostedInternally(ingress)...)
 			errs = append(errs, c.validateIngressPointed(cx, ingress)...)
 		} else if ingressValue == "nginx-external" {
@@ -175,15 +175,15 @@ func (c *authorizer) validateCertManagerIngress(cx *api.Context, ingress *extens
 			if solverFound && solverValue != "http01" {
 				errs = append(errs, field.Invalid(field.NewPath("metadata.labels.cert-manager.io/solver"), solverValue, "nginx-external has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver is present and does not specify http01; either delete that label to use the default value or specify http01 as its value"))
 			}
-			
+
 			errs = append(errs, c.validateIngressPointed(cx, ingress)...)
 		}
 	}
-	
+
 	if !ingressValueValid {
 		errs = append(errs, field.Invalid(field.NewPath("metadata.annotations.kubernetes.io/ingress.class"), ingressValue, "annotation kubernetes.io/ingress.class is missing; please specify a value of either nginx-internal or nginx-external"))
 	}
-	
+
 	for tlsIdx, tls := range ingress.Spec.TLS {
 		if len(tls.Hosts) > 0 {
 			if len(tls.Hosts[0]) > 63 {
@@ -191,14 +191,14 @@ func (c *authorizer) validateCertManagerIngress(cx *api.Context, ingress *extens
 			}
 		}
 	}
-	
+
 	return errs
 }
 
 // getCertManagerReferences returns a map of the certificate managers present from a labels or annotations map
 func getCertManagerReferencesFromKeyMap(aMap map[string]string) map[string]bool {
-	certManagerReferences := map[string]bool {}
-	
+	certManagerReferences := map[string]bool{}
+
 	for k := range aMap {
 		if strings.HasPrefix(k, "stable.k8s.psg.io/kcm") {
 			certManagerReferences["stable.k8s.psg.io/kcm"] = true
@@ -208,41 +208,41 @@ func getCertManagerReferencesFromKeyMap(aMap map[string]string) map[string]bool 
 			certManagerReferences["cert-manager.io"] = true
 		}
 	}
-	
+
 	return certManagerReferences
 }
 
 // getCertManagerReferences returns a list of certificate managers mentioned in the ingress
 func getCertManagerReferences(ingress *extensions.Ingress) []string {
 	var allManagers []string
-	
+
 	allReferences := getCertManagerReferencesFromKeyMap(ingress.GetLabels())
 	annotationsReferences := getCertManagerReferencesFromKeyMap(ingress.GetAnnotations())
-	
+
 	// merge the 2 maps
 	for k, v := range annotationsReferences {
 		allReferences[k] = v
 	}
-	
+
 	// get the certificate managers list
 	for k := range allReferences {
 		allManagers = append(allManagers, k)
 	}
-	
+
 	sort.Strings(allManagers)
-	
+
 	return allManagers
 }
 
 func (c *authorizer) validateSingleCertificateManagerIngress(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
 	var errs field.ErrorList
-	
+
 	certManagerReferenced := getCertManagerReferences(ingress)
-	
+
 	if len(certManagerReferenced) > 1 {
-		errs = append(errs, field.Invalid(field.NewPath("metadata.annotations"), "", fmt.Sprintf("this ingress should be managed by a single certificate manager; found prefixes %v in annotations or labels; please use only one of those prefix types and ideally migrate to cert-manager.io", certManagerReferenced )))
+		errs = append(errs, field.Invalid(field.NewPath("metadata.annotations"), "", fmt.Sprintf("this ingress should be managed by a single certificate manager; found prefixes %v in annotations or labels; please use only one of those prefix types and ideally migrate to cert-manager.io", certManagerReferenced)))
 	}
-	
+
 	return errs
 }
 
@@ -254,13 +254,13 @@ func (c *authorizer) validateIngress(cx *api.Context, ingress *extensions.Ingres
 	if errs = c.validateSingleCertificateManagerIngress(cx, ingress); errs != nil {
 		return errs
 	}
-	
+
 	// @check this ingress for psg kube-cert-manager errors
 	errs = c.validatePsgIngress(cx, ingress)
-	
+
 	// @check this ingress for JetStack's cert-manager.io (v0.11+) errors
 	errs = append(c.validateCertManagerIngress(cx, ingress), errs...)
-	
+
 	return errs
 }
 
@@ -311,16 +311,16 @@ func (c *authorizer) isHostedInternally(ingress *extensions.Ingress) field.Error
 func (c *authorizer) isIngressPointed(ingress *extensions.Ingress) (field.ErrorList, error) {
 	var errs field.ErrorList
 	var ingressType string
-	
+
 	var expectedHostName string
 	if value, found := ingress.GetAnnotations()["kubernetes.io/ingress.class"]; found && value == "nginx-internal" {
-	    expectedHostName = c.config.InternalIngressHostname
-	    ingressType = "internal"
-    } else {
+		expectedHostName = c.config.InternalIngressHostname
+		ingressType = "internal"
+	} else {
 		expectedHostName = c.config.ExternalIngressHostname
 		ingressType = "external"
 	}
- 
+
 	for i, x := range ingress.Spec.Rules {
 		if cname, err := c.resolve.GetCNAME(x.Host); err != nil {
 			return errs, err
