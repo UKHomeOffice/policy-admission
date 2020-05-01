@@ -172,8 +172,8 @@ func (c *authorizer) validateCertManagerIngress(cx *api.Context, ingress *extens
 			errs = append(errs, c.validateIngressPointed(cx, ingress)...)
 		} else if ingressValue == "nginx-external" {
 			ingressValueValid = true
-			if solverFound && solverValue != "http01" {
-				errs = append(errs, field.Invalid(field.NewPath("metadata.labels.cert-manager.io/solver"), solverValue, "nginx-external has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver is present and does not specify http01; either delete that label to use the default value or specify http01 as its value"))
+			if solverFound && solverValue != "http01" && solverValue != "route53" {
+				errs = append(errs, field.Invalid(field.NewPath("metadata.labels.cert-manager.io/solver"), solverValue, "nginx-external has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver has an invalid value: expecting http01, route53 or no solver annotation"))
 			}
 
 			errs = append(errs, c.validateIngressPointed(cx, ingress)...)

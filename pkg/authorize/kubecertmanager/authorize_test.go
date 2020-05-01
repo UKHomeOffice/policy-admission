@@ -379,7 +379,7 @@ func TestAuthorizer(t *testing.T) {
 				},
 			},
 		},
-		"check cert-manager.io external ingress with extraneous label is denied": {
+		"check cert-manager.io external ingress with route53 solver is ok": {
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class":	"nginx-external",
 				"cert-manager.io/enabled": 	   	"true",
@@ -387,14 +387,6 @@ func TestAuthorizer(t *testing.T) {
 			Labels: map[string]string{"cert-manager.io/solver": "route53"},
 			Hosts:  []string{"site.example.com"},
 			Resolves: config.ExternalIngressHostname,
-			Errors: field.ErrorList{
-				{
-					Field:    "metadata.labels.cert-manager.io/solver",
-					BadValue: "route53",
-					Type:     field.ErrorTypeInvalid,
-					Detail:   "nginx-external has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver is present and does not specify http01; either delete that label to use the default value or specify http01 as its value",
-				},
-			},
 		},
 		"check cert-manager.io external ingress with invalid solver is denied": {
 			Annotations: map[string]string{
@@ -409,7 +401,7 @@ func TestAuthorizer(t *testing.T) {
 					Field:    "metadata.labels.cert-manager.io/solver",
 					BadValue: "bad",
 					Type:     field.ErrorTypeInvalid,
-					Detail:   "nginx-external has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver is present and does not specify http01; either delete that label to use the default value or specify http01 as its value",
+					Detail:   "nginx-external has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver has an invalid value: expecting http01, route53 or no solver annotation",
 				},
 			},
 		},
