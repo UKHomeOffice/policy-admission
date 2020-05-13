@@ -534,6 +534,42 @@ func TestAuthorizer(t *testing.T) {
 			},
 		},
 		// what about same check on Certificates? change js script?
+		"check cert-manager.io internal ingress with kubernetes.io/tls-acme annotation is denied": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-internal",
+				"cert-manager.io/enabled":     "true",
+				"kubernetes.io/tls-acme":      "true",
+			},
+			Labels:   map[string]string{"cert-manager.io/solver": "route53"},
+			Hosts:    []string{"site.example.com"},
+			Resolves: config.InternalIngressHostname,
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata.annotations.kubernetes.io/tls-acme",
+					BadValue: "true",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "you have specified route53 as the cert-manager solver to use; please remove the kubernetes.io/tls-acme annotation",
+				},
+			},
+		},
+		"check cert-manager.io external ingress with route53 solver and kubernetes.io/tls-acme annotation is denied": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+				"kubernetes.io/tls-acme":      "true",
+			},
+			Labels:   map[string]string{"cert-manager.io/solver": "route53"},
+			Hosts:    []string{"site.example.com"},
+			Resolves: config.ExternalIngressHostname,
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata.annotations.kubernetes.io/tls-acme",
+					BadValue: "true",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "you have specified route53 as the cert-manager solver to use; please remove the kubernetes.io/tls-acme annotation",
+				},
+			},
+		},
 	}
 	newTestAuthorizer(t, config).runChecks(t, checks)
 }

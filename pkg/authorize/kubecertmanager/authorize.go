@@ -186,6 +186,12 @@ func (c *authorizer) validateCertManagerIngress(cx *api.Context, ingress *extens
 		}
 	}
 
+	if solverValue, solverFound := ingress.GetLabels()["cert-manager.io/solver"]; solverFound && solverValue == "route53" {
+		if tlsAcmeValue, tlsAcmeFound := ingress.GetAnnotations()["kubernetes.io/tls-acme"]; tlsAcmeFound && tlsAcmeValue == "true" {
+			errs = append(errs, field.Invalid(field.NewPath("metadata.annotations.kubernetes.io/tls-acme"), tlsAcmeValue, "you have specified route53 as the cert-manager solver to use; please remove the kubernetes.io/tls-acme annotation"))
+		}
+	}
+
 	return errs
 }
 
@@ -228,7 +234,7 @@ func getCertManagerReferences(ingress *extensions.Ingress) []string {
 	return allManagers
 }
 
-func (c *authorizer) validateSingleCertificateManagerIngress(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
+func (c *authorizer) validateSingleCertificateManagerIngress(ingress *extensions.Ingress) field.ErrorList {
 	var errs field.ErrorList
 
 	certManagerReferenced := getCertManagerReferences(ingress)
@@ -245,7 +251,7 @@ func (c *authorizer) validateIngress(cx *api.Context, ingress *extensions.Ingres
 	var errs field.ErrorList
 
 	// @step: if annotations or labels for different certificate managers have been specified, complain and stop here
-	if errs = c.validateSingleCertificateManagerIngress(cx, ingress); errs != nil {
+	if errs = c.validateSingleCertificateManagerIngress(ingress); errs != nil {
 		return errs
 	}
 
