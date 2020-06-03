@@ -24,7 +24,8 @@ import (
 	admission "k8s.io/api/admission/v1beta1"
 	apps "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -35,17 +36,17 @@ func decodeObject(kind string, review *admission.AdmissionReview) (metav1.Object
 
 	switch kind {
 	case api.FilterDeployments:
-		object = &extensions.Deployment{}
+		object = &apps.Deployment{}
 	case api.FilterIngresses:
-		object = &extensions.Ingress{}
+		object = &networkingv1beta1.Ingress{}
 	case api.FilterNamespace:
 		object = &core.Namespace{}
 	case api.FilterNetworkPolicy:
-		object = &extensions.NetworkPolicy{}
+		object = &networkingv1.NetworkPolicy{}
 	case api.FilterPods:
 		object = &core.Pod{}
 	case api.FilterReplicaSet:
-		object = &extensions.ReplicaSet{}
+		object = &apps.ReplicaSet{}
 	case api.FilterReplicationControllers:
 		object = &core.ReplicationController{}
 	case api.FilterServices:

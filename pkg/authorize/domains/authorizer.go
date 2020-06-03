@@ -24,7 +24,7 @@ import (
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
@@ -39,7 +39,7 @@ func (c *authorizer) Admit(_ context.Context, ax *api.Context) field.ErrorList {
 	var errs field.ErrorList
 
 	// @step: get namespace for this object
-	ingress := ax.Object.(*extensions.Ingress)
+	ingress := ax.Object.(*networkingv1beta1.Ingress)
 	namespace, err := utils.GetCachedNamespace(ax.Client, ax.Cache, ingress.Namespace)
 	if err != nil {
 		return append(errs, field.InternalError(field.NewPath("namespace"), err))

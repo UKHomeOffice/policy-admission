@@ -6,4 +6,4 @@ cover.out
 *.swp
 .idea/
 .talismanrc
-
+.DS_Store
