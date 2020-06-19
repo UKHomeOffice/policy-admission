@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	core "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
@@ -66,7 +66,7 @@ func TestValuesAuthorizer(t *testing.T) {
 					},
 				},
 			},
-			Object: &extensions.Ingress{
+			Object: &networkingv1beta1.Ingress{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"ingress.kubernetes.io/body": "20M",
@@ -92,7 +92,7 @@ func TestValuesAuthorizer(t *testing.T) {
 					},
 				},
 			},
-			Object: &extensions.Ingress{
+			Object: &networkingv1beta1.Ingress{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"ingress.kubernetes.io/body": "20m",
@@ -116,7 +116,7 @@ func TestValuesAuthorizer(t *testing.T) {
 						},
 					},
 				},
-				Object: &extensions.Ingress{
+				Object: &networkingv1beta1.Ingress{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test",
 						Namespace: "test",
@@ -152,7 +152,7 @@ func TestValuesAuthorizer(t *testing.T) {
 					},
 				},
 			},
-			Object: &extensions.Ingress{
+			Object: &networkingv1beta1.Ingress{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"nothing_here": "nothing",
@@ -170,7 +170,7 @@ func TestValuesAuthorizer(t *testing.T) {
 					},
 				},
 			},
-			Object: &extensions.Ingress{},
+			Object: &networkingv1beta1.Ingress{},
 		},
 	}
 	newTestAuthorizer(t, nil).runChecks(t, checks)

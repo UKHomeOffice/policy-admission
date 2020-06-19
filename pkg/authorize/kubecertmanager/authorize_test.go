@@ -18,6 +18,7 @@ package kubecertmanager
 
 import (
 	"context"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"testing"
 	"time"
 
@@ -26,7 +27,6 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
@@ -625,9 +625,9 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]kubeCertCheck
 		}
 
 		ingress := newDefaultIngress()
-		ingress.Spec.TLS = make([]extensions.IngressTLS, 1)
+		ingress.Spec.TLS = make([]networkingv1beta1.IngressTLS, 1)
 		for _, x := range check.Hosts {
-			ingress.Spec.Rules = append(ingress.Spec.Rules, extensions.IngressRule{Host: x})
+			ingress.Spec.Rules = append(ingress.Spec.Rules, networkingv1beta1.IngressRule{Host: x})
 			ingress.Spec.TLS[0].Hosts = append(ingress.Spec.TLS[0].Hosts, x)
 		}
 		ingress.ObjectMeta.Annotations = check.Annotations
@@ -646,13 +646,13 @@ func newTestContext() *api.Context {
 	}
 }
 
-func newDefaultIngress() *extensions.Ingress {
-	return &extensions.Ingress{
+func newDefaultIngress() *networkingv1beta1.Ingress {
+	return &networkingv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-",
 			Namespace: "test",
 		},
-		Spec: extensions.IngressSpec{},
+		Spec: networkingv1beta1.IngressSpec{},
 	}
 }
 

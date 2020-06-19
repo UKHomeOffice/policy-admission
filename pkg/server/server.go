@@ -30,7 +30,7 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/patrickmn/go-cache"
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	core "k8s.io/client-go/informers/core/v1"
 	indexers "k8s.io/client-go/tools/cache"
@@ -132,7 +132,7 @@ func New(config *Config, providers []api.Authorize) (*Admission, error) {
 	engine.GET("/health", c.healthHandler)
 	if config.EnableMetrics {
 		engine.GET("/metrics", func(ctx echo.Context) error {
-			prometheus.Handler().ServeHTTP(ctx.Response().Writer, ctx.Request())
+			promhttp.Handler().ServeHTTP(ctx.Response().Writer, ctx.Request())
 			return nil
 		})
 	}

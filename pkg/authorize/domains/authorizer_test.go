@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	core "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
@@ -144,19 +144,19 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]domainsCheck)
 	}
 }
 
-func newTestIngress(hostname string) *extensions.Ingress {
+func newTestIngress(hostname string) *networkingv1beta1.Ingress {
 	if hostname == "" {
 		hostname = "test.test.svc.cluster.local"
 	}
-	return &extensions.Ingress{
+	return &networkingv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "test"},
-		Spec: extensions.IngressSpec{
-			TLS: []extensions.IngressTLS{
+		Spec: networkingv1beta1.IngressSpec{
+			TLS: []networkingv1beta1.IngressTLS{
 				{Hosts: []string{hostname}, SecretName: "tls"},
 			},
-			Rules: []extensions.IngressRule{{Host: hostname}},
+			Rules: []networkingv1beta1.IngressRule{{Host: hostname}},
 		},
-		Status: extensions.IngressStatus{},
+		Status: networkingv1beta1.IngressStatus{},
 	}
 }
 

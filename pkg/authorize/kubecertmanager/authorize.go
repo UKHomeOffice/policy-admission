@@ -36,7 +36,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/route53/route53iface"
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
@@ -62,7 +62,7 @@ type authorizer struct {
 func (c *authorizer) Admit(_ context.Context, cx *api.Context) field.ErrorList {
 	var errs field.ErrorList
 
-	ingress, ok := cx.Object.(*extensions.Ingress)
+	ingress, ok := cx.Object.(*networkingv1beta1.Ingress)
 	if !ok {
 		return append(errs, field.InternalError(field.NewPath("object"), errors.New("invalid object, expected Ingress")))
 	}
@@ -71,7 +71,7 @@ func (c *authorizer) Admit(_ context.Context, cx *api.Context) field.ErrorList {
 }
 
 // validateIngress checks that the ingress's host resolve to the hostname of the cluster's internal or external ingress
-func (c *authorizer) validateIngressPointed(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
+func (c *authorizer) validateIngressPointed(cx *api.Context, ingress *networkingv1beta1.Ingress) field.ErrorList {
 	var errs field.ErrorList
 
 	// @step: get namespace for this object
@@ -96,7 +96,7 @@ func (c *authorizer) validateIngressPointed(cx *api.Context, ingress *extensions
 }
 
 // validateIngress checks the PSG managed ingress complies with policy
-func (c *authorizer) validatePsgIngress(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
+func (c *authorizer) validatePsgIngress(cx *api.Context, ingress *networkingv1beta1.Ingress) field.ErrorList {
 	var errs field.ErrorList
 
 	if value, found := ingress.GetLabels()["stable.k8s.psg.io/kcm.class"]; !found || value != "default" {
@@ -140,7 +140,7 @@ func (c *authorizer) validatePsgIngress(cx *api.Context, ingress *extensions.Ing
 	return errs
 }
 
-func (c *authorizer) validateCertManagerIngress(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
+func (c *authorizer) validateCertManagerIngress(cx *api.Context, ingress *networkingv1beta1.Ingress) field.ErrorList {
 	var errs field.ErrorList
 
 	if managers := getCertManagerReferences(ingress); len(managers) != 1 || managers[0] != "cert-manager.io" {
@@ -213,7 +213,7 @@ func getCertManagerReferencesFromKeyMap(aMap map[string]string) map[string]bool 
 }
 
 // getCertManagerReferences returns a list of certificate managers mentioned in the ingress
-func getCertManagerReferences(ingress *extensions.Ingress) []string {
+func getCertManagerReferences(ingress *networkingv1beta1.Ingress) []string {
 	var allManagers []string
 
 	allReferences := getCertManagerReferencesFromKeyMap(ingress.GetLabels())
@@ -234,7 +234,7 @@ func getCertManagerReferences(ingress *extensions.Ingress) []string {
 	return allManagers
 }
 
-func (c *authorizer) validateSingleCertificateManagerIngress(ingress *extensions.Ingress) field.ErrorList {
+func (c *authorizer) validateSingleCertificateManagerIngress(ingress *networkingv1beta1.Ingress) field.ErrorList {
 	var errs field.ErrorList
 
 	certManagerReferenced := getCertManagerReferences(ingress)
@@ -247,7 +247,7 @@ func (c *authorizer) validateSingleCertificateManagerIngress(ingress *extensions
 }
 
 // validateIngress checks the the ingress complies with policy
-func (c *authorizer) validateIngress(cx *api.Context, ingress *extensions.Ingress) field.ErrorList {
+func (c *authorizer) validateIngress(cx *api.Context, ingress *networkingv1beta1.Ingress) field.ErrorList {
 	var errs field.ErrorList
 
 	// @step: if annotations or labels for different certificate managers have been specified, complain and stop here
@@ -265,7 +265,7 @@ func (c *authorizer) validateIngress(cx *api.Context, ingress *extensions.Ingres
 }
 
 // isHostedInternally checks the domain is hosted by us - i.e. within a zone we control
-func (c *authorizer) isHostedInternally(ingress *extensions.Ingress) field.ErrorList {
+func (c *authorizer) isHostedInternally(ingress *networkingv1beta1.Ingress) field.ErrorList {
 	var errs field.ErrorList
 
 	// @step: retrieve the list to domains we are hosting
@@ -309,7 +309,7 @@ func (c *authorizer) isHostedInternally(ingress *extensions.Ingress) field.Error
 
 // isIngressPointed is responsible for checking the dns hostname is pointed to eiher external or internal ingress
 // depending on the ingress class
-func (c *authorizer) isIngressPointed(ingress *extensions.Ingress) (field.ErrorList, error) {
+func (c *authorizer) isIngressPointed(ingress *networkingv1beta1.Ingress) (field.ErrorList, error) {
 	var errs field.ErrorList
 	var ingressType string
 

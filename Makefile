@@ -8,7 +8,6 @@ GIT_SHA=$(shell git --no-pager describe --always --dirty)
 GOVERSION=1.13
 BUILD_TIME=$(shell date -u '+%Y-%m-%d_%I:%M:%S%p')
 VERSION ?= $(shell awk '/Version.*=/ { print $$3 }' cmd/policy-admission/main.go | sed 's/"//g')
-DEPS=$(shell go list -f '{{range .TestImports}}{{.}} {{end}}' ./...)
 PACKAGES=$(shell go list ./...)
 LFLAGS ?= -X main.GitSHA=${GIT_SHA}
 VETARGS ?= -asmdecl -atomic -bool -buildtags -copylocks -methods -nilfunc -printf -rangeloops -unsafeptr
@@ -29,7 +28,7 @@ build:
 	mkdir -p bin
 	go build -ldflags "${LFLAGS}" -o bin/${NAME} cmd/policy-admission/*.go
 
-static: golang deps
+static: golang modules
 	@echo "--> Compiling the static binary"
 	mkdir -p bin
 	CGO_ENABLED=0 GOOS=linux go build -a -tags netgo -ldflags "-w ${LFLAGS}" -o bin/${NAME} cmd/policy-admission/*.go
@@ -65,14 +64,9 @@ authors:
 	@echo "--> Updating the AUTHORS"
 	git log --format='%aN <%aE>' | sort -u > AUTHORS
 
-dep-install:
-	@echo "--> Retrieving dependencies"
-	@dep ensure -v
-
-deps:
-	@echo "--> Installing build dependencies"
-	@go get -u github.com/golang/dep/cmd/dep
-	$(MAKE) dep-install
+modules:
+	@echo "--> Downloading modules"
+	@go mod download
 
 vet:
 	@echo "--> Running go vet $(VETARGS) ."
@@ -109,17 +103,14 @@ cover:
 	@echo "--> Running go cover"
 	@go test -cover $(PACKAGES)
 
-test-nodep:
+test-nomodules:
 	@echo "--> Running the tests"
 	@go test -v ${PACKAGES}
 	@$(MAKE) vet
 	@$(MAKE) cover
 
-test: deps
+test: modules
 	@echo "--> Running the tests"
-	  @if [ ! -d "vendor" ]; then \
-    make dep-install; \
-  fi
 	@go test -v ${PACKAGES}
 	@$(MAKE) vet
 	@$(MAKE) cover
