@@ -95,51 +95,6 @@ func (c *authorizer) validateIngressPointed(cx *api.Context, ingress *networking
 	return errs
 }
 
-// validateIngress checks the PSG managed ingress complies with policy
-func (c *authorizer) validatePsgIngress(cx *api.Context, ingress *networkingv1beta1.Ingress) field.ErrorList {
-	var errs field.ErrorList
-
-	if value, found := ingress.GetLabels()["stable.k8s.psg.io/kcm.class"]; !found || value != "default" {
-		return errs
-	}
-
-	// @check if the domain is not within the internally hosts domain i.e. the provider is missing or set to dns
-	if value, found := ingress.GetAnnotations()["stable.k8s.psg.io/kcm.provider"]; !found || value == "dns" {
-		return c.isHostedInternally(ingress)
-	}
-
-	// @logic: else the domain it's requesting is outside of the internally hosted domain/s
-
-	label := "stable.k8s.psg.io/kcm.provider"
-	class := "http"
-	annontations := ingress.GetAnnotations()
-
-	// @check we have http challenge enabled
-	if value, found := annontations["stable.k8s.psg.io/kcm.provider"]; !found {
-		return append(errs, field.Invalid(field.NewPath("annotations").Key(label), value,
-			"one or more domains in the ingress are externally hosted, you must use a http challenge"))
-	} else if value != "http" {
-		return append(errs, field.Invalid(field.NewPath("annotations").Key(label), value,
-			fmt.Sprintf("invalid kube-cert-manager provider type: %s, expected: %s", value, class)))
-	}
-
-	// @check the nginx is external
-	label = "kubernetes.io/ingress.class"
-	class = "nginx-external"
-
-	if value, found := annontations[label]; !found {
-		return append(errs, field.Invalid(field.NewPath("annotations").Key(label), "",
-			"the ingress does not specify a nginx class in annotations"))
-	} else if value != class {
-		return append(errs, field.Invalid(field.NewPath("annotations").Key(label), value,
-			fmt.Sprintf("invalid kube-cert-manager provider, expected '%s' for a http challenge", class)))
-	}
-
-	errs = append(errs, c.validateIngressPointed(cx, ingress)...)
-
-	return errs
-}
-
 func (c *authorizer) validateCertManagerIngress(cx *api.Context, ingress *networkingv1beta1.Ingress) field.ErrorList {
 	var errs field.ErrorList
 
@@ -234,29 +189,33 @@ func getCertManagerReferences(ingress *networkingv1beta1.Ingress) []string {
 	return allManagers
 }
 
-func (c *authorizer) validateSingleCertificateManagerIngress(ingress *networkingv1beta1.Ingress) field.ErrorList {
+func (c *authorizer) validateSingleCertificateManagerIngress(ingress *networkingv1beta1.Ingress) (field.ErrorList, []string) {
 	var errs field.ErrorList
 
 	certManagerReferenced := getCertManagerReferences(ingress)
 
 	if len(certManagerReferenced) > 1 {
-		errs = append(errs, field.Invalid(field.NewPath("metadata.annotations"), "", fmt.Sprintf("this ingress should be managed by a single certificate manager; found prefixes %v in annotations or labels; please use only one of those prefix types and ideally migrate to cert-manager.io", certManagerReferenced)))
+		errs = append(errs, field.Invalid(field.NewPath("metadata.annotations"), "", fmt.Sprintf("this ingress should be managed by a single certificate manager; found prefixes %v in annotations or labels; please use only cert-manager.io", certManagerReferenced)))
+		return errs, certManagerReferenced
 	}
 
-	return errs
+	return nil, certManagerReferenced
 }
 
 // validateIngress checks the the ingress complies with policy
 func (c *authorizer) validateIngress(cx *api.Context, ingress *networkingv1beta1.Ingress) field.ErrorList {
 	var errs field.ErrorList
+	var certManagers []string
 
 	// @step: if annotations or labels for different certificate managers have been specified, complain and stop here
-	if errs = c.validateSingleCertificateManagerIngress(ingress); errs != nil {
+	if errs, certManagers = c.validateSingleCertificateManagerIngress(ingress); errs != nil {
 		return errs
 	}
 
-	// @check this ingress for psg kube-cert-manager errors
-	errs = c.validatePsgIngress(cx, ingress)
+	if len(certManagers) == 1 && certManagers[0] != "cert-manager.io" {
+		errs = append(errs, field.Invalid(field.NewPath("metadata"), certManagers[0], fmt.Sprintf("certificate manager %v is no longer supported; please use cert-manager.io in annotations or labels", certManagers[0])))
+		return errs
+	}
 
 	// @check this ingress for JetStack's cert-manager.io (v0.11+) errors
 	errs = append(c.validateCertManagerIngress(cx, ingress), errs...)
