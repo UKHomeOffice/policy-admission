@@ -475,7 +475,7 @@ func TestAuthorizer(t *testing.T) {
 		},
 		"check old certmanager.k8s.io labels are rejected": {
 			Labels: map[string]string{
-				"certmanager.k8s.io": "foo",
+				"certmanager.k8s.io/foo": "bar",
 			},
 			Errors: field.ErrorList{
 				{
