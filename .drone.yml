@@ -1,52 +1,84 @@
+---
+kind: pipeline
+name: default
+type: kubernetes
+
+platform:
+  os: linux
+  arch: amd64
+
 workspace:
-  base: /go
-  path: src/github.com/UKHomeOffice/policy-admission
+  path: /go/src/github.com/UKHomeOffice/policy-admission
 
-pipeline:
-  tests:
-    image: golang:1.14.4
+steps:
+- name: tests
+  image: golang:1.14.4
+  commands:
+  - make test
+  - make static
+  when:
+    event:
+    - push
+    - tag
+    - pull_request
+
+- name: build-image
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+  commands:
+  # wait for docker service to be up before running docker build
+  - n=0; while [ "$n" -lt 60 ] && [ ! docker stats --no-stream ]; do n=$(( n + 1 )); sleep 1; done
+  - docker build -t policy-admission:$${DRONE_COMMIT_SHA} .
+  when:
+    event:
+    - push
+    - tag
+    - pull_request
+
+- name: scan-image
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/anchore-submission:v0.0.5-1
+  environment:
+    IMAGE_NAME: policy-admission:${DRONE_COMMIT_SHA}
+  when:
+    event:
+    - push
+    - tag
+    - pull_request
+
+- name: latest
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+  commands:
+  - docker tag policy-admission:$${DRONE_COMMIT_SHA} quay.io/ukhomeofficedigital/policy-admission:latest
+  - docker login -u="ukhomeofficedigital+policy_admission" -p=$${DOCKER_PASSWORD} quay.io
+  - docker push quay.io/ukhomeofficedigital/policy-admission:latest
+  environment:
+    DOCKER_PASSWORD:
+      from_secret: docker_password
+  when:
+    branch:
+    - master
+    event:
+    - push
+
+- name: tagged
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+  commands:
+  - docker tag policy-admission:$${DRONE_COMMIT_SHA} quay.io/ukhomeofficedigital/policy-admission:$${DRONE_TAG}
+  - docker login -u="ukhomeofficedigital+policy_admission" -p=$${DOCKER_PASSWORD} quay.io
+  - docker push quay.io/ukhomeofficedigital/policy-admission:$${DRONE_TAG}
+  environment:
+    DOCKER_PASSWORD:
+      from_secret: docker_password
+  when:
+    event:
+    - tag
+
+services:
+  - name: docker
+    image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+
+  - name: anchore-submission-server
+    image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/anchore-submission:v0.0.5-1
     commands:
-      - make test
-      - make static
-    when:
-      event: [push, tag]
+      - /run.sh server
 
-  build-image:
-    image: docker:17.09.0-ce
-    environment:
-      - DOCKER_HOST=tcp://172.17.0.1:2375
-    commands:
-      - docker build -t policy-admission:$${DRONE_COMMIT_SHA} .
-    when:
-      event: [push, tag]
-
-  scan-image:
-    image: quay.io/ukhomeofficedigital/anchore-submission:latest
-    image_name: policy-admission:${DRONE_COMMIT_SHA}
-    when:
-      event: [push, tag]
-
-  latest:
-    image: docker:17.09.0-ce
-    environment:
-      - DOCKER_HOST=tcp://172.17.0.1:2375
-    secrets: [docker_password]
-    commands:
-      - docker tag policy-admission:$${DRONE_COMMIT_SHA} quay.io/ukhomeofficedigital/policy-admission:latest
-      - docker login -u="ukhomeofficedigital+policy_admission" -p=$${DOCKER_PASSWORD} quay.io
-      - docker push quay.io/ukhomeofficedigital/policy-admission:latest
-    when:
-      event: push
-      branch: master
-
-  tagged:
-    image: docker:17.09.0-ce
-    environment:
-      - DOCKER_HOST=tcp://172.17.0.1:2375
-    secrets: [docker_password]
-    commands:
-      - docker tag policy-admission:$${DRONE_COMMIT_SHA} quay.io/ukhomeofficedigital/policy-admission:$${DRONE_TAG}
-      - docker login -u="ukhomeofficedigital+policy_admission" -p=$${DOCKER_PASSWORD} quay.io
-      - docker push quay.io/ukhomeofficedigital/policy-admission:$${DRONE_TAG}
-    when:
-      event: tag
+...
