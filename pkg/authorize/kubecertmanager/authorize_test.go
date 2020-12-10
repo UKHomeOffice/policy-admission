@@ -50,142 +50,6 @@ func TestAuthorizer(t *testing.T) {
 
 	checks := map[string]kubeCertCheck{
 		"check that the ingress is allowed through": {},
-		"check an ingress is allowed when inside the allowed list": {
-			Annotations: map[string]string{"kubernetes.io/ingress.class": "nginx-external"},
-			Labels:      map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
-			Hosts:       []string{"site.example.com"},
-		},
-		"check an ingress is allowed with a dns annotation and allowed list": {
-			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":    "nginx-external",
-				"stable.k8s.psg.io/kcm.provider": "dns",
-			},
-			Labels: map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
-			Hosts:  []string{"site.example.com"},
-		},
-		"check an externally hosted domain is denied": {
-			Annotations: map[string]string{"kubernetes.io/ingress.class": "nginx-external"},
-			Labels:      map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
-			Hosts:       []string{"site.nohere.com"},
-			Errors: field.ErrorList{
-				{
-					Field:    "spec.rules[0].host",
-					BadValue: "site.nohere.com",
-					Type:     field.ErrorTypeInvalid,
-					Detail:   "domain is not hosted internally and thus denied",
-				},
-			},
-		},
-		"check an externally host is denied invalid challenge type": {
-			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":    "nginx-external",
-				"stable.k8s.psg.io/kcm.provider": "bad",
-			},
-			Labels: map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
-			Hosts:  []string{"site.nohere.com"},
-			Errors: field.ErrorList{
-				{
-					Field:    "annotations[stable.k8s.psg.io/kcm.provider]",
-					BadValue: "bad",
-					Type:     field.ErrorTypeInvalid,
-					Detail:   "invalid kube-cert-manager provider type: bad, expected: http",
-				},
-			},
-		},
-		"check an externaly host is denied when ingress is not external": {
-			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":    "nginx-internal",
-				"stable.k8s.psg.io/kcm.provider": "http",
-			},
-			Labels: map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
-			Hosts:  []string{"site.nohere.com"},
-			Errors: field.ErrorList{
-				{
-					Field:    "annotations[kubernetes.io/ingress.class]",
-					BadValue: "nginx-internal",
-					Type:     field.ErrorTypeInvalid,
-					Detail:   "invalid kube-cert-manager provider, expected 'nginx-external' for a http challenge",
-				},
-			},
-		},
-		"check a ingress is denied when the dns does not resolve": {
-			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":    "nginx-external",
-				"stable.k8s.psg.io/kcm.provider": "http",
-			},
-			Labels:   map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
-			Hosts:    []string{"site.nohere.com"},
-			Resolves: "bad.hostname",
-			Errors: field.ErrorList{
-				{
-					Field:    "spec.rules[0].host",
-					BadValue: "site.nohere.com",
-					Type:     field.ErrorTypeInvalid,
-					Detail:   "the hostname: site.nohere.com is not pointed to the external ingress dns name ingress-external.acp.example.com",
-				},
-			},
-		},
-		"check a ingress permitted when resolves": {
-			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":    "nginx-external",
-				"stable.k8s.psg.io/kcm.provider": "http",
-			},
-			Labels:   map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
-			Hosts:    []string{"site.nohere.com"},
-			Resolves: config.ExternalIngressHostname,
-		},
-		"check a ingress is permitted when the dns check is disabled": {
-			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":    "nginx-external",
-				"stable.k8s.psg.io/kcm.provider": "http",
-			},
-			Namespace: map[string]string{
-				"policy-admission.acp.homeoffice.gov.uk/kubecertmanager/enable-dns-check": "false",
-			},
-			Labels:   map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
-			Hosts:    []string{"site.nohere.com"},
-			Resolves: "bad.hostname",
-		},
-		"check a ingress is denied when dns check is enabled": {
-			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":    "nginx-external",
-				"stable.k8s.psg.io/kcm.provider": "http",
-			},
-			Namespace: map[string]string{
-				"policy-admission.acp.homeoffice.gov.uk/kubecertmanager/enable-dns-check": "true",
-			},
-			Labels:   map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
-			Hosts:    []string{"site.nohere.com"},
-			Resolves: "bad.hostname",
-			Errors: field.ErrorList{
-				{
-					Field:    "spec.rules[0].host",
-					BadValue: "site.nohere.com",
-					Type:     field.ErrorTypeInvalid,
-					Detail:   "the hostname: site.nohere.com is not pointed to the external ingress dns name ingress-external.acp.example.com",
-				},
-			},
-		},
-		"check a default value of dns check is true": {
-			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":    "nginx-external",
-				"stable.k8s.psg.io/kcm.provider": "http",
-			},
-			Namespace: map[string]string{
-				"policy-admission.acp.homeoffice.gov.uk/kubecertmanager/enable-dns-check": "bad_value",
-			},
-			Labels:   map[string]string{"stable.k8s.psg.io/kcm.class": "default"},
-			Hosts:    []string{"site.nohere.com"},
-			Resolves: "bad.hostname",
-			Errors: field.ErrorList{
-				{
-					Field:    "spec.rules[0].host",
-					BadValue: "site.nohere.com",
-					Type:     field.ErrorTypeInvalid,
-					Detail:   "the hostname: site.nohere.com is not pointed to the external ingress dns name ingress-external.acp.example.com",
-				},
-			},
-		},
 		"check valid cert-manager.io internal ingress is ok": {
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class": "nginx-internal",
@@ -481,7 +345,7 @@ func TestAuthorizer(t *testing.T) {
 					Field:    "metadata.annotations",
 					BadValue: "",
 					Type:     field.ErrorTypeInvalid,
-					Detail:   "this ingress should be managed by a single certificate manager; found prefixes [cert-manager.io certmanager.k8s.io] in annotations or labels; please use only one of those prefix types and ideally migrate to cert-manager.io",
+					Detail:   "this ingress should be managed by a single certificate manager; found prefixes [cert-manager.io certmanager.k8s.io] in annotations or labels; please use only cert-manager.io",
 				},
 			},
 		},
@@ -497,7 +361,7 @@ func TestAuthorizer(t *testing.T) {
 					Field:    "metadata.annotations",
 					BadValue: "",
 					Type:     field.ErrorTypeInvalid,
-					Detail:   "this ingress should be managed by a single certificate manager; found prefixes [cert-manager.io stable.k8s.psg.io/kcm] in annotations or labels; please use only one of those prefix types and ideally migrate to cert-manager.io",
+					Detail:   "this ingress should be managed by a single certificate manager; found prefixes [cert-manager.io stable.k8s.psg.io/kcm] in annotations or labels; please use only cert-manager.io",
 				},
 			},
 		},
@@ -513,7 +377,7 @@ func TestAuthorizer(t *testing.T) {
 					Field:    "metadata.annotations",
 					BadValue: "",
 					Type:     field.ErrorTypeInvalid,
-					Detail:   "this ingress should be managed by a single certificate manager; found prefixes [cert-manager.io stable.k8s.psg.io/kcm] in annotations or labels; please use only one of those prefix types and ideally migrate to cert-manager.io",
+					Detail:   "this ingress should be managed by a single certificate manager; found prefixes [cert-manager.io stable.k8s.psg.io/kcm] in annotations or labels; please use only cert-manager.io",
 				},
 			},
 		},
@@ -529,7 +393,7 @@ func TestAuthorizer(t *testing.T) {
 					Field:    "metadata.annotations",
 					BadValue: "",
 					Type:     field.ErrorTypeInvalid,
-					Detail:   "this ingress should be managed by a single certificate manager; found prefixes [cert-manager.io stable.k8s.psg.io/kcm] in annotations or labels; please use only one of those prefix types and ideally migrate to cert-manager.io",
+					Detail:   "this ingress should be managed by a single certificate manager; found prefixes [cert-manager.io stable.k8s.psg.io/kcm] in annotations or labels; please use only cert-manager.io",
 				},
 			},
 		},
@@ -567,6 +431,58 @@ func TestAuthorizer(t *testing.T) {
 					BadValue: "true",
 					Type:     field.ErrorTypeInvalid,
 					Detail:   "you have specified route53 as the cert-manager solver to use; please remove the kubernetes.io/tls-acme annotation",
+				},
+			},
+		},
+		"check psg annotations are rejected": {
+			Annotations: map[string]string{
+				"stable.k8s.psg.io/kcm-foo": "bar",
+			},
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata",
+					BadValue: "stable.k8s.psg.io/kcm",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "certificate manager stable.k8s.psg.io/kcm is no longer supported; please use cert-manager.io in annotations or labels",
+				},
+			},
+		},
+		"check psg labels are rejected": {
+			Labels: map[string]string{
+				"stable.k8s.psg.io/kcm-foo": "bar",
+			},
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata",
+					BadValue: "stable.k8s.psg.io/kcm",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "certificate manager stable.k8s.psg.io/kcm is no longer supported; please use cert-manager.io in annotations or labels",
+				},
+			},
+		},
+		"check old certmanager.k8s.io annotations are rejected": {
+			Annotations: map[string]string{
+				"certmanager.k8s.io/foo": "bar",
+			},
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata",
+					BadValue: "certmanager.k8s.io",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "certificate manager certmanager.k8s.io is no longer supported; please use cert-manager.io in annotations or labels",
+				},
+			},
+		},
+		"check old certmanager.k8s.io labels are rejected": {
+			Labels: map[string]string{
+				"certmanager.k8s.io": "foo",
+			},
+			Errors: field.ErrorList{
+				{
+					Field:    "metadata",
+					BadValue: "certmanager.k8s.io",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "certificate manager certmanager.k8s.io is no longer supported; please use cert-manager.io in annotations or labels",
 				},
 			},
 		},
