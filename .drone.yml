@@ -12,7 +12,7 @@ workspace:
 
 steps:
 - name: tests
-  image: golang:1.14.4
+  image: golang:1.17.3
   commands:
   - make test
   - make static

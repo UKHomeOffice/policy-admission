@@ -1,4 +1,4 @@
-FROM alpine:3.10
+FROM alpine:3.13
 MAINTAINER Rohith Jayawardene <gambol99@gmail.com>
 
 RUN apk -U add ca-certificates --no-cache
