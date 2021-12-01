@@ -14,7 +14,7 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.6.0
-	github.com/tidwall/gjson v1.6.0
+	github.com/tidwall/gjson v1.12.1
 	github.com/urfave/cli v1.22.4
 	github.com/valyala/fasttemplate v1.1.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
