@@ -57,7 +57,7 @@ func TestAuthorizer(t *testing.T) {
 				Spec: core.ServiceSpec{Type: core.ServiceTypeClusterIP},
 			},
 		},
-		"check a nodeport service is allowed though": {
+		"check a nodeport service is allowed through": {
 			Service: &core.Service{
 				Spec: core.ServiceSpec{Type: core.ServiceTypeNodePort},
 			},
@@ -107,8 +107,12 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]serviceCheck)
 		if check.Whitelist != "" {
 			namespace.Annotations[cx.Annotation(Name)] = check.Whitelist
 		}
-		cx.Client.CoreV1().Namespaces().Create(namespace)
+		cx.Client.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
 		cx.Object = check.Service
+		// the cx.Client.CoreV1().Namespaces().Create() function above doesn't seem to set the service's Namespace field
+		// so when the Admit function gets called, it fails because it can't get the cached namespace, because it gets told to look for a namespace with no name
+		// i.e. when utils.GetCachedNamespace(cx.Client, cx.Cache, svc.Namespace) is called, svc.Namespace is empty
+		cx.Object.SetNamespace(namespace.GetName())
 
 		assert.Equal(t, check.Errors, c.svc.Admit(context.TODO(), cx), "case: '%s' result not as expected", desc)
 	}

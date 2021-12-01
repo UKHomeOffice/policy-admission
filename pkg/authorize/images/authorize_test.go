@@ -135,7 +135,7 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]imageCheck) {
 		if image != "" {
 			pod.Spec.Containers[0].Image = image
 		}
-		cx.Client.CoreV1().Namespaces().Create(namespace)
+		cx.Client.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
 		cx.Object = pod
 
 		assert.Equal(t, check.Errors, c.svc.Admit(context.TODO(), cx), "case: '%s' result not as expected", desc)

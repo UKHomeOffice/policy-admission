@@ -36,7 +36,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/route53/route53iface"
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
@@ -62,7 +62,7 @@ type authorizer struct {
 func (c *authorizer) Admit(_ context.Context, cx *api.Context) field.ErrorList {
 	var errs field.ErrorList
 
-	ingress, ok := cx.Object.(*networkingv1beta1.Ingress)
+	ingress, ok := cx.Object.(*networkingv1.Ingress)
 	if !ok {
 		return append(errs, field.InternalError(field.NewPath("object"), errors.New("invalid object, expected Ingress")))
 	}
@@ -71,7 +71,7 @@ func (c *authorizer) Admit(_ context.Context, cx *api.Context) field.ErrorList {
 }
 
 // validateIngress checks that the ingress's host resolve to the hostname of the cluster's internal or external ingress
-func (c *authorizer) validateIngressPointed(cx *api.Context, ingress *networkingv1beta1.Ingress) field.ErrorList {
+func (c *authorizer) validateIngressPointed(cx *api.Context, ingress *networkingv1.Ingress) field.ErrorList {
 	var errs field.ErrorList
 
 	// @step: get namespace for this object
@@ -95,7 +95,51 @@ func (c *authorizer) validateIngressPointed(cx *api.Context, ingress *networking
 	return errs
 }
 
-func (c *authorizer) validateCertManagerIngress(cx *api.Context, ingress *networkingv1beta1.Ingress) field.ErrorList {
+// getIngressClass will check whether the user has set the ingressClassName field or the ingress.class annotation (or both) and return the value of the one that's set
+func getIngressClass(ingress *networkingv1.Ingress) (string, field.ErrorList) {
+	var ingressClass string
+	var errs field.ErrorList
+
+	ingressClassNameValue := *ingress.Spec.IngressClassName
+	ingressAnnotationValue, ingressAnnotationFound := ingress.GetAnnotations()["kubernetes.io/ingress.class"]
+
+	// check if either the ingressClassName field or the annotation are set
+	if ingressClassNameValue != "" || ingressAnnotationFound {
+		// check which one is actually set
+		if ingressClassNameValue != "" && ingressAnnotationFound {
+			// if they're both set, they should be set to the same thing
+			if ingressClassNameValue != ingressAnnotationValue {
+				errs = append(errs, field.Invalid(field.NewPath("spec.ingressclassname"), ingressClassNameValue, "field ingressClassName and annotation kubernetes.io/ingress.class should be set to the same value; please specify a value of either nginx-internal or nginx-external"))
+			} else {
+				ingressClass = ingressClassNameValue
+			}
+		} else if ingressClassNameValue != "" {
+			ingressClass = ingressClassNameValue
+		} else {
+			ingressClass = ingressAnnotationValue
+		}
+
+		switch ingressClass {
+		case "nginx-internal", "nginx-external":
+			// these are valid classes so do nothing
+		case "":
+			// this should only happen if the ingress annotation and class name field are set, but both are different
+			// we don't want to do anything, but we also don't want the "invalid" errors from the default case since they're not really correct
+		default:
+			// anything else is not a valid class
+			errs = append(errs, field.Invalid(field.NewPath("spec.ingressclassname"), ingressClassNameValue, "field ingressClassName is invalid; please specify a value of either nginx-internal or nginx-external"))
+			errs = append(errs, field.Invalid(field.NewPath("metadata.annotations.kubernetes.io/ingress.class"), ingressAnnotationValue, "annotation kubernetes.io/ingress.class is invalid; please specify a value of either nginx-internal or nginx-external"))
+		}
+	} else {
+		errs = append(errs, field.Invalid(field.NewPath("spec.ingressclassname"), "", "field ingressClassName is missing; please specify a value of either nginx-internal or nginx-external"))
+		errs = append(errs, field.Invalid(field.NewPath("metadata.annotations.kubernetes.io/ingress.class"), "", "annotation kubernetes.io/ingress.class is missing; please specify a value of either nginx-internal or nginx-external"))
+	}
+
+	return ingressClass, errs
+}
+
+// validateCertManagerIngress will check that the correct solver is being used for the ingress
+func (c *authorizer) validateCertManagerIngress(cx *api.Context, ingress *networkingv1.Ingress) field.ErrorList {
 	var errs field.ErrorList
 
 	if managers := getCertManagerReferences(ingress); len(managers) != 1 || managers[0] != "cert-manager.io" {
@@ -107,30 +151,27 @@ func (c *authorizer) validateCertManagerIngress(cx *api.Context, ingress *networ
 		return append(errs, field.Invalid(field.NewPath("metadata.annotations.cert-manager.io/enabled"), "", "cert-manager.io annotations or labels are present, but annotation cert-manager.io/enabled: \"true\" is missing"))
 	}
 
-	ingressValueValid := false
-	ingressValue, ingressFound := ingress.GetAnnotations()["kubernetes.io/ingress.class"]
-	if ingressFound {
-		solverValue, solverFound := ingress.GetLabels()["cert-manager.io/solver"]
-		if ingressValue == "nginx-internal" {
-			ingressValueValid = true
-			if !solverFound || solverValue != "route53" {
-				errs = append(errs, field.Invalid(field.NewPath("metadata.labels.cert-manager.io/solver"), solverValue, "nginx-internal has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver is missing or not set to route53"))
-			}
+	// get the class defined in the ingress
+	ingressClass, ingClassErrs := getIngressClass(ingress)
+	errs = append(errs, ingClassErrs...)
 
-			errs = append(errs, c.isHostedInternally(ingress)...)
-			errs = append(errs, c.validateIngressPointed(cx, ingress)...)
-		} else if ingressValue == "nginx-external" {
-			ingressValueValid = true
-			if solverFound && solverValue != "http01" && solverValue != "route53" {
-				errs = append(errs, field.Invalid(field.NewPath("metadata.labels.cert-manager.io/solver"), solverValue, "nginx-external has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver has an invalid value: expecting http01, route53 or no solver annotation"))
-			}
+	solverValue, solverFound := ingress.GetLabels()["cert-manager.io/solver"]
 
-			errs = append(errs, c.validateIngressPointed(cx, ingress)...)
+	// if ingress class isn't either of these, then it is invalid and an error should've been addedto the slice in the getIngressClass function
+	if ingressClass == "nginx-internal" {
+		if !solverFound || solverValue != "route53" {
+			errs = append(errs, field.Invalid(field.NewPath("metadata.labels.cert-manager.io/solver"), solverValue, "nginx-internal has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver is missing or not set to route53"))
 		}
-	}
 
-	if !ingressValueValid {
-		errs = append(errs, field.Invalid(field.NewPath("metadata.annotations.kubernetes.io/ingress.class"), ingressValue, "annotation kubernetes.io/ingress.class is missing; please specify a value of either nginx-internal or nginx-external"))
+		errs = append(errs, c.isHostedInternally(ingress)...)
+		// pass ingressclass to avoid getting it again in the function
+		errs = append(errs, c.validateIngressPointed(cx, ingress)...)
+	} else if ingressClass == "nginx-external" {
+		if solverFound && solverValue != "http01" && solverValue != "route53" {
+			errs = append(errs, field.Invalid(field.NewPath("metadata.labels.cert-manager.io/solver"), solverValue, "nginx-external has been specified as an annotation for kubernetes.io/ingress.class but label cert-manager.io/solver has an invalid value: expecting http01, route53 or no solver annotation"))
+		}
+
+		errs = append(errs, c.validateIngressPointed(cx, ingress)...)
 	}
 
 	for tlsIdx, tls := range ingress.Spec.TLS {
@@ -168,7 +209,7 @@ func getCertManagerReferencesFromKeyMap(aMap map[string]string) map[string]bool 
 }
 
 // getCertManagerReferences returns a list of certificate managers mentioned in the ingress
-func getCertManagerReferences(ingress *networkingv1beta1.Ingress) []string {
+func getCertManagerReferences(ingress *networkingv1.Ingress) []string {
 	var allManagers []string
 
 	allReferences := getCertManagerReferencesFromKeyMap(ingress.GetLabels())
@@ -189,7 +230,7 @@ func getCertManagerReferences(ingress *networkingv1beta1.Ingress) []string {
 	return allManagers
 }
 
-func (c *authorizer) validateSingleCertificateManagerIngress(ingress *networkingv1beta1.Ingress) (field.ErrorList, []string) {
+func (c *authorizer) validateSingleCertificateManagerIngress(ingress *networkingv1.Ingress) (field.ErrorList, []string) {
 	var errs field.ErrorList
 
 	certManagerReferenced := getCertManagerReferences(ingress)
@@ -203,7 +244,7 @@ func (c *authorizer) validateSingleCertificateManagerIngress(ingress *networking
 }
 
 // validateIngress checks the the ingress complies with policy
-func (c *authorizer) validateIngress(cx *api.Context, ingress *networkingv1beta1.Ingress) field.ErrorList {
+func (c *authorizer) validateIngress(cx *api.Context, ingress *networkingv1.Ingress) field.ErrorList {
 	var errs field.ErrorList
 	var certManagers []string
 
@@ -224,7 +265,7 @@ func (c *authorizer) validateIngress(cx *api.Context, ingress *networkingv1beta1
 }
 
 // isHostedInternally checks the domain is hosted by us - i.e. within a zone we control
-func (c *authorizer) isHostedInternally(ingress *networkingv1beta1.Ingress) field.ErrorList {
+func (c *authorizer) isHostedInternally(ingress *networkingv1.Ingress) field.ErrorList {
 	var errs field.ErrorList
 
 	// @step: retrieve the list to domains we are hosting
@@ -268,17 +309,25 @@ func (c *authorizer) isHostedInternally(ingress *networkingv1beta1.Ingress) fiel
 
 // isIngressPointed is responsible for checking the dns hostname is pointed to eiher external or internal ingress
 // depending on the ingress class
-func (c *authorizer) isIngressPointed(ingress *networkingv1beta1.Ingress) (field.ErrorList, error) {
+func (c *authorizer) isIngressPointed(ingress *networkingv1.Ingress) (field.ErrorList, error) {
 	var errs field.ErrorList
 	var ingressType string
 
 	var expectedHostName string
-	if value, found := ingress.GetAnnotations()["kubernetes.io/ingress.class"]; found && value == "nginx-internal" {
+
+	// if we got to this point then there shouldn't be any errors from getIngressClass, so no need to check the errorList
+	ingressClass, _ := getIngressClass(ingress)
+
+	switch ingressClass {
+	case "nginx-internal":
 		expectedHostName = c.config.InternalIngressHostname
 		ingressType = "internal"
-	} else {
+	case "nginx-external":
 		expectedHostName = c.config.ExternalIngressHostname
 		ingressType = "external"
+	default:
+		// this should never happen
+		errs = append(errs, field.Invalid(field.NewPath(""), ingressClass, "the ingress class is invalid; please specify a value of either nginx-internal or nginx-external"))
 	}
 
 	for i, x := range ingress.Spec.Rules {

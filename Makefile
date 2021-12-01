@@ -85,7 +85,7 @@ lint:
 gofmt:
 	@echo "--> Running gofmt check"
 	@gofmt -s -l ./... | grep -q \.go ; if [ $$? -eq 0 ]; then \
-      echo "You need to runn the make format, we have file unformatted"; \
+      echo "You need to run the make format, we have file unformatted"; \
       gofmt -s -l *.go; \
       exit 1; \
     fi

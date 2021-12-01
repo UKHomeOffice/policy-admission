@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	core "k8s.io/api/core/v1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
@@ -136,7 +136,7 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]domainsCheck)
 		if check.Whitelist != "" {
 			namespace.Annotations[ctx.Annotation(Name)] = check.Whitelist
 		}
-		ctx.Client.CoreV1().Namespaces().Create(namespace)
+		ctx.Client.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
 
 		ctx.Object = newTestIngress(check.Hostname)
 
@@ -144,19 +144,19 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]domainsCheck)
 	}
 }
 
-func newTestIngress(hostname string) *networkingv1beta1.Ingress {
+func newTestIngress(hostname string) *networkingv1.Ingress {
 	if hostname == "" {
 		hostname = "test.test.svc.cluster.local"
 	}
-	return &networkingv1beta1.Ingress{
+	return &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "test"},
-		Spec: networkingv1beta1.IngressSpec{
-			TLS: []networkingv1beta1.IngressTLS{
+		Spec: networkingv1.IngressSpec{
+			TLS: []networkingv1.IngressTLS{
 				{Hosts: []string{hostname}, SecretName: "tls"},
 			},
-			Rules: []networkingv1beta1.IngressRule{{Host: hostname}},
+			Rules: []networkingv1.IngressRule{{Host: hostname}},
 		},
-		Status: networkingv1beta1.IngressStatus{},
+		Status: networkingv1.IngressStatus{},
 	}
 }
 

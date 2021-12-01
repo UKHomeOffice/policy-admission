@@ -215,12 +215,12 @@ func newTestAuthorizer(t *testing.T, config *Config) *testAuthorizer {
 
 func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]check) {
 	cx := newTestContext()
-	cx.Client.CoreV1().Namespaces().Create(&core.Namespace{
+	cx.Client.CoreV1().Namespaces().Create(context.TODO(), &core.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "test",
 			Annotations: make(map[string]string, 0),
 		},
-	})
+	}, metav1.CreateOptions{})
 
 	for desc, check := range checks {
 		s := c.svc.(*authorizer)

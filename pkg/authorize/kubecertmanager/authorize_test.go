@@ -18,15 +18,16 @@ package kubecertmanager
 
 import (
 	"context"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"testing"
 	"time"
+
+	networkingv1 "k8s.io/api/networking/v1"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
@@ -276,6 +277,12 @@ func TestAuthorizer(t *testing.T) {
 			Hosts: []string{"site.example.com"},
 			Errors: field.ErrorList{
 				{
+					Field:    "spec.ingressclassname",
+					BadValue: "",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "field ingressClassName is missing; please specify a value of either nginx-internal or nginx-external",
+				},
+				{
 					Field:    "metadata.annotations.kubernetes.io/ingress.class",
 					BadValue: "",
 					Type:     field.ErrorTypeInvalid,
@@ -291,10 +298,16 @@ func TestAuthorizer(t *testing.T) {
 			Hosts: []string{"site.example.com"},
 			Errors: field.ErrorList{
 				{
+					Field:    "spec.ingressclassname",
+					BadValue: "",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "field ingressClassName is invalid; please specify a value of either nginx-internal or nginx-external",
+				},
+				{
 					Field:    "metadata.annotations.kubernetes.io/ingress.class",
 					BadValue: "bad",
 					Type:     field.ErrorTypeInvalid,
-					Detail:   "annotation kubernetes.io/ingress.class is missing; please specify a value of either nginx-internal or nginx-external",
+					Detail:   "annotation kubernetes.io/ingress.class is invalid; please specify a value of either nginx-internal or nginx-external",
 				},
 			},
 		},
@@ -486,17 +499,104 @@ func TestAuthorizer(t *testing.T) {
 				},
 			},
 		},
+		// IngressClassName field checks
+		"check internal ingress with ingressclassname is ok": {
+			Annotations: map[string]string{
+				"cert-manager.io/enabled": "true",
+			},
+			Labels:           map[string]string{"cert-manager.io/solver": "route53"},
+			Hosts:            []string{"site.example.com"},
+			IngressClassName: "nginx-internal",
+			Resolves:         config.InternalIngressHostname,
+		},
+		"check external ingress with ingressclassname is ok": {
+			Annotations: map[string]string{
+				"cert-manager.io/enabled": "true",
+			},
+			Hosts:            []string{"site.example.com"},
+			IngressClassName: "nginx-external",
+			Resolves:         config.ExternalIngressHostname,
+		},
+		"check ingress invalid ingressclassname is denied": {
+			Annotations: map[string]string{
+				"cert-manager.io/enabled": "true",
+			},
+			Labels:           map[string]string{"cert-manager.io/solver": "route53"},
+			Hosts:            []string{"site.example.com"},
+			IngressClassName: "bad",
+			Errors: field.ErrorList{
+				{
+					Field:    "spec.ingressclassname",
+					BadValue: "bad",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "field ingressClassName is invalid; please specify a value of either nginx-internal or nginx-external",
+				},
+				{
+					Field:    "metadata.annotations.kubernetes.io/ingress.class",
+					BadValue: "",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "annotation kubernetes.io/ingress.class is invalid; please specify a value of either nginx-internal or nginx-external",
+				},
+			},
+		},
+		"check internal ingress with annotation and ingressclassname is ok": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-internal",
+				"cert-manager.io/enabled":     "true",
+			},
+			Labels:           map[string]string{"cert-manager.io/solver": "route53"},
+			Hosts:            []string{"site.example.com"},
+			IngressClassName: "nginx-internal",
+			Resolves:         config.InternalIngressHostname,
+		},
+		// this technically is allowed by the ingress controller (the ingressClassName field will take precedence over the annotation)
+		// but no-one should really be doing this anyway (e.g. they could change it so that the annotation takes precedence)
+		"check ingress with different annotation and ingressclassname is denied": {
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": "nginx-external",
+				"cert-manager.io/enabled":     "true",
+			},
+			Hosts:            []string{"site.example.com"},
+			IngressClassName: "nginx-internal",
+			Resolves:         config.InternalIngressHostname,
+			Errors: field.ErrorList{
+				{
+					Field:    "spec.ingressclassname",
+					BadValue: "nginx-internal",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "field ingressClassName and annotation kubernetes.io/ingress.class should be set to the same value; please specify a value of either nginx-internal or nginx-external",
+				},
+			},
+		},
+		"check an externally hosted domain with internal ingress ingressclassname is denied": {
+			Annotations: map[string]string{
+				"cert-manager.io/enabled": "true",
+			},
+			Labels:           map[string]string{"cert-manager.io/solver": "route53"},
+			Hosts:            []string{"site.nohere.com"},
+			IngressClassName: "nginx-internal",
+			Resolves:         config.InternalIngressHostname,
+			Errors: field.ErrorList{
+				{
+					Field:    "spec.rules[0].host",
+					BadValue: "site.nohere.com",
+					Type:     field.ErrorTypeInvalid,
+					Detail:   "domain is not hosted internally and thus denied",
+				},
+			},
+		},
 	}
 	newTestAuthorizer(t, config).runChecks(t, checks)
 }
 
 type kubeCertCheck struct {
-	Annotations map[string]string
-	Namespace   map[string]string
-	Errors      field.ErrorList
-	Hosts       []string
-	Labels      map[string]string
-	Resolves    string
+	Annotations      map[string]string
+	Namespace        map[string]string
+	Errors           field.ErrorList
+	Hosts            []string
+	Labels           map[string]string
+	IngressClassName string
+	Resolves         string
 }
 
 type testAuthorizer struct {
@@ -529,25 +629,26 @@ func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]kubeCertCheck
 	for desc, check := range checks {
 		cx := newTestContext()
 
-		cx.Client.CoreV1().Namespaces().Create(&v1.Namespace{
+		cx.Client.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        "test",
 				Annotations: check.Namespace,
 			},
-		})
+		}, metav1.CreateOptions{})
 
 		if check.Resolves != "" {
 			c.svc.(*authorizer).resolve = &testResolver{hostname: check.Resolves}
 		}
 
 		ingress := newDefaultIngress()
-		ingress.Spec.TLS = make([]networkingv1beta1.IngressTLS, 1)
+		ingress.Spec.TLS = make([]networkingv1.IngressTLS, 1)
 		for _, x := range check.Hosts {
-			ingress.Spec.Rules = append(ingress.Spec.Rules, networkingv1beta1.IngressRule{Host: x})
+			ingress.Spec.Rules = append(ingress.Spec.Rules, networkingv1.IngressRule{Host: x})
 			ingress.Spec.TLS[0].Hosts = append(ingress.Spec.TLS[0].Hosts, x)
 		}
 		ingress.ObjectMeta.Annotations = check.Annotations
 		ingress.ObjectMeta.Labels = check.Labels
+		ingress.Spec.IngressClassName = &check.IngressClassName
 		cx.Object = ingress
 
 		assert.Equal(t, check.Errors, c.svc.Admit(context.TODO(), cx), "case: '%s' result not as expected", desc)
@@ -562,13 +663,13 @@ func newTestContext() *api.Context {
 	}
 }
 
-func newDefaultIngress() *networkingv1beta1.Ingress {
-	return &networkingv1beta1.Ingress{
+func newDefaultIngress() *networkingv1.Ingress {
+	return &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-",
 			Namespace: "test",
 		},
-		Spec: networkingv1beta1.IngressSpec{},
+		Spec: networkingv1.IngressSpec{},
 	}
 }
 
