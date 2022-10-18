@@ -129,8 +129,35 @@ func (c *authorizer) validateCertManagerIngress(cx *api.Context, ingress *networ
 		}
 	}
 
+	ingressClassNameValue := field.NewPath("spec.ingressClassName")
+	if ingressClassNameValue != "" {
+		solverValue, solverFound := ingress.GetLabels()["cert-manager.io/solver"]
+		if ingressClassNameValue == "nginx-internal" {
+			ingressValueValid = true
+			if !solverFound || solverValue != "route53" {
+				errs = append(errs, field.Invalid(field.NewPath("metadata.labels.cert-manager.io/solver"), solverValue, "nginx-internal has been specified in spec.ingressClassName field but label cert-manager.io/solver is missing or not set to route53"))
+			}
+
+			errs = append(errs, c.isHostedInternally(ingress)...)
+			errs = append(errs, c.validateIngressPointed(cx, ingress)...)
+		} else if ingressClassNameValue == "nginx-external" {
+			ingressValueValid = true
+			if solverFound && solverValue != "http01" && solverValue != "route53" {
+				errs = append(errs, field.Invalid(field.NewPath("metadata.labels.cert-manager.io/solver"), solverValue, "nginx-external has been specified in spec.ingressClassName field  but label cert-manager.io/solver has an invalid value: expecting http01, route53 or no solver annotation"))
+			}
+
+			errs = append(errs, c.validateIngressPointed(cx, ingress)...)
+		}
+	}
+
 	if !ingressValueValid {
-		errs = append(errs, field.Invalid(field.NewPath("metadata.annotations.kubernetes.io/ingress.class"), ingressValue, "annotation kubernetes.io/ingress.class is missing; please specify a value of either nginx-internal or nginx-external"))
+		if ingressClassNameValue != "" {
+			errs = append(errs, field.Invalid(field.NewPath("spec.ingressClassName"), ingressClassNameValue, "spec.ingressClassName is missing; please specify a value of either nginx-internal or nginx-external"))
+
+		} else if ingressClassNameValue == "" {
+			errs = append(errs, field.Invalid(field.NewPath("metadata.annotations.kubernetes.io/ingress.class"), ingressValue, "annotation kubernetes.io/ingress.class is missing; please specify a value of either nginx-internal or nginx-external"))
+		}
+
 	}
 
 	for tlsIdx, tls := range ingress.Spec.TLS {
