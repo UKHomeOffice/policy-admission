@@ -105,7 +105,7 @@ func GetCacheKey(names ...string) string {
 func GetCachedNamespace(client kubernetes.Interface, mcache *cache.Cache, name string) (*core.Namespace, error) {
 	cached, err := GetCachedResource(client, mcache, GetCacheKey(api.NamespaceCacheKey, name), time.Duration(1*time.Minute), time.Duration(10*time.Minute),
 		func(client kubernetes.Interface, keyname string) (interface{}, error) {
-			resource, err := client.CoreV1().Namespaces().Get(name, metav1.GetOptions{})
+			resource, err := client.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {
 				return nil, err
 			}

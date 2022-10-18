@@ -18,6 +18,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -80,9 +81,9 @@ func newTestKubernetesClient() kubernetes.Interface {
 	client := fake.NewSimpleClientset()
 
 	for _, namespace := range []string{"test", "kube-system", "ignored"} {
-		client.CoreV1().Namespaces().Create(&core.Namespace{
+		client.CoreV1().Namespaces().Create(context.TODO(), &core.Namespace{
 			ObjectMeta: metav1.ObjectMeta{Name: namespace},
-		})
+		}, metav1.CreateOptions{})
 	}
 
 	return client

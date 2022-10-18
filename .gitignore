@@ -7,3 +7,4 @@ cover.out
 .idea/
 .talismanrc
 .DS_Store
+.vscode/

@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	core "k8s.io/api/core/v1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
@@ -66,7 +66,7 @@ func TestValuesAuthorizer(t *testing.T) {
 					},
 				},
 			},
-			Object: &networkingv1beta1.Ingress{
+			Object: &networkingv1.Ingress{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"ingress.kubernetes.io/body": "20M",
@@ -92,7 +92,7 @@ func TestValuesAuthorizer(t *testing.T) {
 					},
 				},
 			},
-			Object: &networkingv1beta1.Ingress{
+			Object: &networkingv1.Ingress{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"ingress.kubernetes.io/body": "20m",
@@ -116,7 +116,7 @@ func TestValuesAuthorizer(t *testing.T) {
 						},
 					},
 				},
-				Object: &networkingv1beta1.Ingress{
+				Object: &networkingv1.Ingress{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test",
 						Namespace: "test",
@@ -152,7 +152,7 @@ func TestValuesAuthorizer(t *testing.T) {
 					},
 				},
 			},
-			Object: &networkingv1beta1.Ingress{
+			Object: &networkingv1.Ingress{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"nothing_here": "nothing",
@@ -170,7 +170,7 @@ func TestValuesAuthorizer(t *testing.T) {
 					},
 				},
 			},
-			Object: &networkingv1beta1.Ingress{},
+			Object: &networkingv1.Ingress{},
 		},
 	}
 	newTestAuthorizer(t, nil).runChecks(t, checks)
@@ -188,12 +188,12 @@ func newTestAuthorizer(t *testing.T, config *Config) *testAuthorizer {
 
 func (c *testAuthorizer) runChecks(t *testing.T, checks map[string]check) {
 	cx := newTestContext()
-	cx.Client.CoreV1().Namespaces().Create(&core.Namespace{
+	cx.Client.CoreV1().Namespaces().Create(context.TODO(), &core.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "test",
 			Annotations: make(map[string]string, 0),
 		},
-	})
+	}, metav1.CreateOptions{})
 
 	for desc, check := range checks {
 		s := c.svc.(*authorizer)

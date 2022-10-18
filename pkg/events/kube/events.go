@@ -17,12 +17,14 @@ limitations under the License.
 package kube
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 	"github.com/UKHomeOffice/policy-admission/pkg/utils"
 
 	core "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -43,12 +45,12 @@ func New() (api.Sink, error) {
 
 // Send is responsible for sending the event into the kubernete events
 func (k *kubeSink) Send(event *api.Event) error {
-	_, err := k.client.CoreV1().Events(event.Object.GetNamespace()).Create(&core.Event{
+	_, err := k.client.CoreV1().Events(event.Object.GetNamespace()).Create(context.TODO(), &core.Event{
 		Message: fmt.Sprintf("Denied in namespace: '%s', event.Object: '%s', reason: %s", event.Object.GetNamespace(), event.Object.GetGenerateName(), event.Detail),
 		Reason:  "Forbidden",
 		Source:  core.EventSource{Component: api.AdmissionControllerName},
 		Type:    "Warning",
-	})
+	}, metav1.CreateOptions{})
 
 	return err
 }
