@@ -25,7 +25,7 @@ import (
 	"github.com/labstack/echo"
 	uuid "github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
-	admission "k8s.io/api/admission/v1beta1"
+	admission "k8s.io/api/admission/v1"
 )
 
 // admitHandler is responsible for handling the authorization request

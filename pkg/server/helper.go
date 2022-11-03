@@ -21,7 +21,7 @@ import (
 
 	"github.com/UKHomeOffice/policy-admission/pkg/api"
 
-	admission "k8s.io/api/admission/v1beta1"
+	admission "k8s.io/api/admission/v1"
 	apps "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
