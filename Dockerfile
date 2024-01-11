@@ -1,10 +1,28 @@
-FROM alpine:3.13
-MAINTAINER Rohith Jayawardene <gambol99@gmail.com>
+# Non-Root Application User
+ARG USER=application
+ARG UID=1000
 
-RUN apk -U add ca-certificates --no-cache
+FROM alpine:3.19
+
+ARG USER
+ARG UID
 
 COPY bin/policy-admission /policy-admission
 
-USER 1000
+RUN set -euxo pipefail ;\
+  # Create non-Root user
+  adduser \
+  -D \
+  -g "" \
+  -u "$UID" \
+  -H \
+  "$USER" ; \
+  #Update System Packages
+  apk update ;\
+  apk upgrade ;\
+  rm -rf /var/cache/apk/* ;\
+  # Update File Perms
+  chmod +x /policy-admission ;
 
-ENTRYPOINT [ "/policy-admission" ]
+USER $USER
+ENTRYPOINT ["/policy-admission"]
