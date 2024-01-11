@@ -1,5 +1,5 @@
 FROM alpine:3.19
-MAINTAINER Rohith Jayawardene <gambol99@gmail.com>
+MAINTAINER ACP Platform Team
 
 RUN apk -U add ca-certificates --no-cache
 
