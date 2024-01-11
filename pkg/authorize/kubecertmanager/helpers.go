@@ -42,17 +42,29 @@ func isHosted(ingress *networkingv1beta1.Ingress, domains []string) bool {
 
 // getRoute53HostedDomains returns a list of hosted domains or an error
 func getRoute53HostedDomains(client route53iface.Route53API) ([]string, error) {
-	resp, err := client.ListHostedZones(&route53.ListHostedZonesInput{})
-	if err != nil {
-		return []string{}, err
-	}
-
-	var list []string
-	for _, x := range resp.HostedZones {
-		list = append(list, strings.TrimSuffix(aws.StringValue(x.Name), "."))
-	}
-
-	return list, nil
+    var hostedZones []string
+    var marker *string
+    for {
+        input := &route53.ListHostedZonesInput{
+            MaxItems: aws.String("100"),
+        }
+        if marker != nil {
+            input.Marker = marker
+        }
+        output, err := client.ListHostedZones(input)
+        if err != nil {
+            return []string{}, err
+        }
+        for _, x := range output.HostedZones {
+            hostedZones = append(hostedZones, strings.TrimSuffix(aws.StringValue(x.Name), "."))
+        }
+        if output.IsTruncated != nil && *output.IsTruncated {
+            marker = output.NextMarker
+        } else {
+            break
+        }
+    }
+    return hostedZones, nil
 }
 
 // isIngressPointed is responisble for checking the dns hostname is pointed to the external ingress
