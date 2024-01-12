@@ -35,14 +35,20 @@ steps:
     - pull_request
 
 - name: scan-image
-  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/anchore-submission:v0.0.5-1
+  pull: Always
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/trivy/client:latest
+  resources:
+    limits:
+      cpu: 1000
+      memory: 1024Mi
   environment:
     IMAGE_NAME: policy-admission:${DRONE_COMMIT_SHA}
+    IGNORE_UNFIXED: "true"
   when:
     event:
+    - pull_request
     - push
     - tag
-    - pull_request
 
 - name: latest
   image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
@@ -75,10 +81,3 @@ steps:
 services:
   - name: docker
     image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
-
-  - name: anchore-submission-server
-    image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/anchore-submission:v0.0.5-1
-    commands:
-      - /run.sh server
-
-...
