@@ -24,5 +24,5 @@ RUN set -euxo pipefail ;\
   # Update File Perms
   chmod +x /policy-admission ;
 
-USER $USER
+USER $UID
 ENTRYPOINT ["/policy-admission"]
