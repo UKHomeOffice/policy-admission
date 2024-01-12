@@ -17,7 +17,10 @@ RUN set -euxo pipefail ;\
   #Update System Packages
   apk update ;\
   apk upgrade ;\
+  apk add --no-cache \
+    ca-certificates ;\
   rm -rf /var/cache/apk/* ;\
+  update-ca-certificates ;\
   # Update File Perms
   chmod +x /policy-admission ;
 
